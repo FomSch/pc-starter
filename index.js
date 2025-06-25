@@ -20,6 +20,7 @@ loadconfig();
 client.on("ready", () => {
 
 	console.log("Bot ready");
+    updatePresence();
 });
 
 client.on('messageCreate', msg => {
@@ -344,6 +345,7 @@ function afterposton(channel, attempts = 0, maxAttempts = 30, delayMs = 10000) {
   if (attempts >= maxAttempts) {
     config.status = "off";
     save(__dirname + "/config.json", config);
+    updatePresence();
     sendMessage(channel, "Der Server antwortet nach " + maxAttempts + " Versuchen nicht auf Ping. Bitte überprüfe die Hardware oder das Netzwerkkabel. :octagonal_sign:", globalsec);
     return;
   }
@@ -359,6 +361,7 @@ function afterposton(channel, attempts = 0, maxAttempts = 30, delayMs = 10000) {
     } else {
       config.status = "on";
       save(__dirname + "/config.json", config);
+      updatePresence();
       sendMessage(channel, "Der Post war erfolgreich. Der Server ist online. :white_check_mark:", globalsec);
       return;
     }
@@ -394,6 +397,7 @@ function aftershutoff(c) {
 		if (err != null) {
 			config.status = "off";
 			save(__dirname + "/config.json", config);
+            updatePresence();
 			sendMessage(c, `The shutdown was succesful. The server is offline. :octagonal_sign:`, globalsec);
 			return;
 		}
@@ -437,6 +441,7 @@ function afterrebooton(c) {
 		else {
 			config.status = "on";
 			save(__dirname + "/config.json", config);
+            updatePresence();
 			sendMessage(c, `The reboot was succesful. The server is online. :white_check_mark:`, globalsec);
 			return;
 		}
@@ -472,5 +477,65 @@ async function sendMessage(c, text, sec) {
         	setTimeout(() => msg.delete(), sec * 1000);
         });
 }
+
+// Presence-Update Funktion
+function updatePresence() {
+    if (!client.user) return;
+    if (config.status === "on") {
+        client.user.setPresence({
+            status: "online",
+            activities: [{ name: "PC: AN", type: "WATCHING" }]
+        });
+    } else if (config.status === "off") {
+        client.user.setPresence({
+            status: "idle",
+            activities: [{ name: "PC: AUS", type: "WATCHING" }]
+        });
+    } else if (config.status === "posting") {
+        client.user.setPresence({
+            status: "dnd",
+            activities: [{ name: "PC: STARTET...", type: "WATCHING" }]
+        });
+    } else if (config.status === "shutting") {
+        client.user.setPresence({
+            status: "dnd",
+            activities: [{ name: "PC: FÄHRT RUNTER...", type: "WATCHING" }]
+        });
+    } else if (config.status === "rebooting") {
+        client.user.setPresence({
+            status: "dnd",
+            activities: [{ name: "PC: REBOOT...", type: "WATCHING" }]
+        });
+    } else {
+        client.user.setPresence({
+            status: "idle",
+            activities: [{ name: "Status unbekannt", type: "WATCHING" }]
+        });
+    }
+}
+
+// Regelmäßiger Ping-Check alle 2 Stunden
+setInterval(() => {
+    cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+        let previousStatus = config.status;
+        if (err != null) {
+            // PC ist aus
+            if (config.status !== "off") {
+                config.status = "off";
+                save(__dirname + "/config.json", config);
+                updatePresence();
+                console.log("[AutoCheck] PC ist aus. Status korrigiert.");
+            }
+        } else {
+            // PC ist an
+            if (config.status !== "on") {
+                config.status = "on";
+                save(__dirname + "/config.json", config);
+                updatePresence();
+                console.log("[AutoCheck] PC ist an. Status korrigiert.");
+            }
+        }
+    });
+}, 2 * 60 * 60 * 1000); // alle 2 Stunden
 
 client.login(token);
