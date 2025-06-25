@@ -1,3 +1,13 @@
+// ------------------------
+// neuer code für den servercontrol
+// ------------------------
+
+// ------------------------
+
+// ------------------------
+
+// ------------------------
+
 const discord = require("discord.js");
 const fs = require("fs");
 var cp = require('child_process');
