@@ -11,6 +11,7 @@
 const discord = require("discord.js");
 const fs = require("fs");
 var cp = require('child_process');
+const { MessageActionRow, MessageButton } = require('discord.js');
 var client = new discord.Client({
 	intents: ["GUILDS", "GUILD_MESSAGES"]
 });
@@ -336,6 +337,80 @@ client.on("messageCreate", (msg) => {
 	}
 });
 
+client.on('interactionCreate', async interaction => {
+	if (!interaction.isButton()) return;
+	if (interaction.channel.id !== channelid) return;
+	// Optional: Rollen-Check wie bei den Commands
+	if (required_role.use && !interaction.member.roles.cache.find(role => role.name === required_role.name)) {
+		await interaction.reply({ content: `Sorry, du hast keine Berechtigung.`, ephemeral: true });
+		return;
+	}
+	switch (interaction.customId) {
+		case 'start':
+			if (config.status !== 'off') {
+				await interaction.reply({ content: 'Server ist bereits an oder wird gerade gestartet.', ephemeral: true });
+				return;
+			}
+			cp.exec(__dirname + '/shellscripts/post.sh', function(err) {
+				if (err) {
+					interaction.followUp({ content: `Fehler beim Starten: \`${err}\``, ephemeral: true });
+					return;
+				}
+			});
+			config.status = 'posting';
+			save(__dirname + '/config.json', config);
+			updatePresence();
+			afterposton(interaction.channel);
+			await interaction.reply({ content: 'Server wird gestartet...', ephemeral: true });
+			break;
+		case 'stop':
+			if (config.status !== 'on') {
+				await interaction.reply({ content: 'Server ist bereits aus oder wird gerade heruntergefahren.', ephemeral: true });
+				return;
+			}
+			cp.exec(__dirname + '/shellscripts/shutdown.sh', function(err) {
+				if (err) {
+					interaction.followUp({ content: `Fehler beim Herunterfahren: \`${err}\``, ephemeral: true });
+					return;
+				}
+			});
+			config.status = 'shutting';
+			save(__dirname + '/config.json', config);
+			updatePresence();
+			aftershutoff(interaction.channel);
+			await interaction.reply({ content: 'Server wird heruntergefahren...', ephemeral: true });
+			break;
+		case 'reboot':
+			if (config.status !== 'on') {
+				await interaction.reply({ content: 'Server ist nicht an.', ephemeral: true });
+				return;
+			}
+			cp.exec(__dirname + '/shellscripts/reboot.sh', function(err) {
+				if (err) {
+					interaction.followUp({ content: `Fehler beim Reboot: \`${err}\``, ephemeral: true });
+					return;
+				}
+			});
+			config.status = 'rebooting';
+			save(__dirname + '/config.json', config);
+			updatePresence();
+			afterreboot(interaction.channel);
+			await interaction.reply({ content: 'Server wird neugestartet...', ephemeral: true });
+			break;
+		case 'status':
+			let statusMsg =
+				config.status === 'on' ? 'Server ist online. :white_check_mark:' :
+				config.status === 'posting' ? 'Server startet... :warning:' :
+				config.status === 'shutting' ? 'Server fährt herunter... :warning:' :
+				config.status === 'rebooting' ? 'Server wird neugestartet... :warning:' :
+				'Server ist offline. :octagonal_sign:';
+			await interaction.reply({ content: statusMsg, ephemeral: true });
+			break;
+		default:
+			await interaction.reply({ content: 'Unbekannter Button.', ephemeral: true });
+	}
+});
+
 // ------------------------
 
 function preoperr(c) {
@@ -562,11 +637,26 @@ async function ensureServerControlMessage(channel) {
 			// Nachricht existiert nicht mehr
 		}
 	}
+	const row = new MessageActionRow().addComponents(
+		new MessageButton().setCustomId('start').setLabel('Start').setStyle('SUCCESS'),
+		new MessageButton().setCustomId('stop').setLabel('Stop').setStyle('DANGER'),
+		new MessageButton().setCustomId('reboot').setLabel('Reboot').setStyle('PRIMARY'),
+		new MessageButton().setCustomId('status').setLabel('Status').setStyle('SECONDARY')
+	);
 	if (!message) {
-		// Sende neue Servercontrol-Nachricht
-		let newMsg = await channel.send("**SERVERCONTROL**\nHier steuerst du den Server. Verwende die Befehle im Chat.");
+		// Sende neue Servercontrol-Nachricht mit Buttons
+		let newMsg = await channel.send({
+			content: '**SERVERCONTROL**\nHier steuerst du den Server. Verwende die Buttons unten.',
+			components: [row]
+		});
 		config.serverControlMessageId = newMsg.id;
-		save(__dirname + "/config.json", config);
+		save(__dirname + '/config.json', config);
+	} else {
+		// Stelle sicher, dass die Buttons vorhanden sind
+		await message.edit({
+			content: '**SERVERCONTROL**\nHier steuerst du den Server. Verwende die Buttons unten.',
+			components: [row]
+		});
 	}
 }
 
