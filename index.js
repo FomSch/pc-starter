@@ -17,14 +17,17 @@ var serverip = "";
 var config = require("./config.json");
 loadconfig();
 
-client.on("ready", () => {
-
+client.on("ready", async () => {
 	console.log("Bot ready");
-    updatePresence();
+	updatePresence();
+	let channel = await client.channels.fetch(channelid);
+	if (channel && channel.type === "GUILD_TEXT") {
+		ensureServerControlMessage(channel);
+	}
 });
 
 client.on('messageCreate', msg => {
-  console.log(`[Test] Nachricht empfangen: ${msg.content} | Von: ${msg.author.tag}`);
+	console.log(`[Test] Nachricht empfangen: ${msg.content} | Von: ${msg.author.tag}`);
 });
 
 client.on("messageCreate", (msg) => {
@@ -63,6 +66,7 @@ client.on("messageCreate", (msg) => {
 			save(__dirname + "/config.json", config);
 
 			sendMessage(msg.channel, `Set channel to ` + msg.channel.name + " :speech_left:", globalsec);
+			ensureServerControlMessage(msg.channel);
 		}
 		return;
 	}
@@ -276,7 +280,7 @@ client.on("messageCreate", (msg) => {
 			if (args.length != 1) {
 				sendMessage(msg.channel, `This command functions without arguments. Please use \`\`${prefix}help\`\``, globalsec);
 				return;
-			}
+			} 	
 
 			cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
 				console.log(stdout);
@@ -342,30 +346,30 @@ function preoperr(c) {
 }
 
 function afterposton(channel, attempts = 0, maxAttempts = 30, delayMs = 10000) {
-  if (attempts >= maxAttempts) {
-    config.status = "off";
-    save(__dirname + "/config.json", config);
-    updatePresence();
-    sendMessage(channel, "Der Server antwortet nach " + maxAttempts + " Versuchen nicht auf Ping. Bitte überprüfe die Hardware oder das Netzwerkkabel. :octagonal_sign:", globalsec);
-    return;
-  }
+	if (attempts >= maxAttempts) {
+		config.status = "off";
+		save(__dirname + "/config.json", config);
+		updatePresence();
+		sendMessage(channel, "Der Server antwortet nach " + maxAttempts + " Versuchen nicht auf Ping. Bitte überprüfe die Hardware oder das Netzwerkkabel. :octagonal_sign:", globalsec);
+		return;
+	}
 
-  cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
-    if (err != null) {
-      // Optional: Log den Fehler für Debugging
-      console.log(`Ping-Versuch ${attempts + 1} fehlgeschlagen:`, stderr || err);
+	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+		if (err != null) {
+			// Optional: Log den Fehler für Debugging
+			console.log(`Ping-Versuch ${attempts + 1} fehlgeschlagen:`, stderr || err);
 
-      // Warte und versuche es erneut
-      setTimeout(() => afterposton(channel, attempts + 1, maxAttempts, delayMs), delayMs);
-      return;
-    } else {
-      config.status = "on";
-      save(__dirname + "/config.json", config);
-      updatePresence();
-      sendMessage(channel, "Der Post war erfolgreich. Der Server ist online. :white_check_mark:", globalsec);
-      return;
-    }
-  });
+			// Warte und versuche es erneut
+			setTimeout(() => afterposton(channel, attempts + 1, maxAttempts, delayMs), delayMs);
+			return;
+		} else {
+			config.status = "on";
+			save(__dirname + "/config.json", config);
+			updatePresence();
+			sendMessage(channel, "Der Post war erfolgreich. Der Server ist online. :white_check_mark:", globalsec);
+			return;
+		}
+	});
 }
 
 /*
@@ -397,7 +401,7 @@ function aftershutoff(c) {
 		if (err != null) {
 			config.status = "off";
 			save(__dirname + "/config.json", config);
-            updatePresence();
+			updatePresence();
 			sendMessage(c, `The shutdown was succesful. The server is offline. :octagonal_sign:`, globalsec);
 			return;
 		}
@@ -441,7 +445,7 @@ function afterrebooton(c) {
 		else {
 			config.status = "on";
 			save(__dirname + "/config.json", config);
-            updatePresence();
+			updatePresence();
 			sendMessage(c, `The reboot was succesful. The server is online. :white_check_mark:`, globalsec);
 			return;
 		}
@@ -474,68 +478,86 @@ function loadconfig() {
 async function sendMessage(c, text, sec) {
 
 	c.send(text).then(msg => {
-        	setTimeout(() => msg.delete(), sec * 1000);
-        });
+		setTimeout(() => msg.delete(), sec * 1000);
+	});
 }
 
 // Presence-Update Funktion
 function updatePresence() {
-    if (!client.user) return;
-    if (config.status === "on") {
-        client.user.setPresence({
-            status: "online",
-            activities: [{ name: "PC: AN", type: "WATCHING" }]
-        });
-    } else if (config.status === "off") {
-        client.user.setPresence({
-            status: "idle",
-            activities: [{ name: "PC: AUS", type: "WATCHING" }]
-        });
-    } else if (config.status === "posting") {
-        client.user.setPresence({
-            status: "dnd",
-            activities: [{ name: "PC: STARTET...", type: "WATCHING" }]
-        });
-    } else if (config.status === "shutting") {
-        client.user.setPresence({
-            status: "dnd",
-            activities: [{ name: "PC: FÄHRT RUNTER...", type: "WATCHING" }]
-        });
-    } else if (config.status === "rebooting") {
-        client.user.setPresence({
-            status: "dnd",
-            activities: [{ name: "PC: REBOOT...", type: "WATCHING" }]
-        });
-    } else {
-        client.user.setPresence({
-            status: "idle",
-            activities: [{ name: "Status unbekannt", type: "WATCHING" }]
-        });
-    }
+	if (!client.user) return;
+	if (config.status === "on") {
+		client.user.setPresence({
+			status: "online",
+			activities: [{ name: "PC: AN", type: "WATCHING" }]
+		});
+	} else if (config.status === "off") {
+		client.user.setPresence({
+			status: "idle",
+			activities: [{ name: "PC: AUS", type: "WATCHING" }]
+		});
+	} else if (config.status === "posting") {
+		client.user.setPresence({
+			status: "dnd",
+			activities: [{ name: "PC: STARTET...", type: "WATCHING" }]
+		});
+	} else if (config.status === "shutting") {
+		client.user.setPresence({
+			status: "dnd",
+			activities: [{ name: "PC: FÄHRT RUNTER...", type: "WATCHING" }]
+		});
+	} else if (config.status === "rebooting") {
+		client.user.setPresence({
+			status: "dnd",
+			activities: [{ name: "PC: REBOOT...", type: "WATCHING" }]
+		});
+	} else {
+		client.user.setPresence({
+			status: "idle",
+			activities: [{ name: "Status unbekannt", type: "WATCHING" }]
+		});
+	}
 }
 
 // Regelmäßiger Ping-Check alle 2 Stunden
 setInterval(() => {
-    cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
-        let previousStatus = config.status;
-        if (err != null) {
-            // PC ist aus
-            if (config.status !== "off") {
-                config.status = "off";
-                save(__dirname + "/config.json", config);
-                updatePresence();
-                console.log("[AutoCheck] PC ist aus. Status korrigiert.");
-            }
-        } else {
-            // PC ist an
-            if (config.status !== "on") {
-                config.status = "on";
-                save(__dirname + "/config.json", config);
-                updatePresence();
-                console.log("[AutoCheck] PC ist an. Status korrigiert.");
-            }
-        }
-    });
+	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+		let previousStatus = config.status;
+		if (err != null) {
+			// PC ist aus
+			if (config.status !== "off") {
+				config.status = "off";
+				save(__dirname + "/config.json", config);
+				updatePresence();
+				console.log("[AutoCheck] PC ist aus. Status korrigiert.");
+			}
+		} else {
+			// PC ist an
+			if (config.status !== "on") {
+				config.status = "on";
+				save(__dirname + "/config.json", config);
+				updatePresence();
+				console.log("[AutoCheck] PC ist an. Status korrigiert.");
+			}
+		}
+	});
 }, 2 * 60 * 60 * 1000); // alle 2 Stunden
+
+async function ensureServerControlMessage(channel) {
+	let serverControlMessageId = config.serverControlMessageId;
+	let message;
+	if (serverControlMessageId) {
+		try {
+			message = await channel.messages.fetch(serverControlMessageId);
+		} catch (e) {
+			// Nachricht existiert nicht mehr
+		}
+	}
+	if (!message) {
+		// Sende neue Servercontrol-Nachricht
+		let newMsg = await channel.send("**SERVERCONTROL**\nHier steuerst du den Server. Verwende die Befehle im Chat.");
+		config.serverControlMessageId = newMsg.id;
+		save(__dirname + "/config.json", config);
+	}
+}
 
 client.login(token);
