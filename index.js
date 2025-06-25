@@ -12,6 +12,7 @@ const discord = require("discord.js");
 const fs = require("fs");
 var cp = require('child_process');
 const { MessageActionRow, MessageButton } = require('discord.js');
+const path = require('path');
 var client = new discord.Client({
 	intents: ["GUILDS", "GUILD_MESSAGES"]
 });
@@ -169,6 +170,7 @@ client.on("messageCreate", (msg) => {
 			save(__dirname + "/config.json", config);
 
 			afterposton(msg.channel);
+			logActivity('Server wurde gestartet (Textbefehl)');
 		break;
 
 		case ("reboot"):
@@ -211,6 +213,7 @@ client.on("messageCreate", (msg) => {
 			save(__dirname + "/config.json", config);
 
 			afterreboot(msg.channel);
+			logActivity('Server wurde neugestartet (Textbefehl)');
 		break;
 
 		case ("shutdown"):
@@ -252,6 +255,7 @@ client.on("messageCreate", (msg) => {
 			sendMessage(msg.channel, `The server is shutting down now. :warning:`, globalsec);
 
 			aftershutoff(msg.channel);
+			logActivity('Server wurde heruntergefahren (Textbefehl)');
 		break;		
 
 		case ("force-shutdown"):
@@ -340,7 +344,6 @@ client.on("messageCreate", (msg) => {
 client.on('interactionCreate', async interaction => {
 	if (!interaction.isButton()) return;
 	if (interaction.channel.id !== channelid) return;
-	// Optional: Rollen-Check wie bei den Commands
 	if (required_role.use && !interaction.member.roles.cache.find(role => role.name === required_role.name)) {
 		await interaction.reply({ content: `Sorry, du hast keine Berechtigung.`, ephemeral: true });
 		return;
@@ -351,6 +354,7 @@ client.on('interactionCreate', async interaction => {
 				await interaction.reply({ content: 'Server ist bereits an oder wird gerade gestartet.', ephemeral: true });
 				return;
 			}
+			logActivity('Server wurde gestartet (Button)');
 			cp.exec(__dirname + '/shellscripts/post.sh', function(err) {
 				if (err) {
 					interaction.followUp({ content: `Fehler beim Starten: \`${err}\``, ephemeral: true });
@@ -368,6 +372,7 @@ client.on('interactionCreate', async interaction => {
 				await interaction.reply({ content: 'Server ist bereits aus oder wird gerade heruntergefahren.', ephemeral: true });
 				return;
 			}
+			logActivity('Server wurde heruntergefahren (Button)');
 			cp.exec(__dirname + '/shellscripts/shutdown.sh', function(err) {
 				if (err) {
 					interaction.followUp({ content: `Fehler beim Herunterfahren: \`${err}\``, ephemeral: true });
@@ -385,6 +390,7 @@ client.on('interactionCreate', async interaction => {
 				await interaction.reply({ content: 'Server ist nicht an.', ephemeral: true });
 				return;
 			}
+			logActivity('Server wurde neugestartet (Button)');
 			cp.exec(__dirname + '/shellscripts/reboot.sh', function(err) {
 				if (err) {
 					interaction.followUp({ content: `Fehler beim Reboot: \`${err}\``, ephemeral: true });
@@ -610,6 +616,7 @@ setInterval(() => {
 		if (err != null) {
 			// PC ist aus
 			if (config.status !== "off") {
+				logActivity('Serverstatus automatisch auf AUS gesetzt (ungeplant)');
 				config.status = "off";
 				save(__dirname + "/config.json", config);
 				updatePresence();
@@ -618,6 +625,7 @@ setInterval(() => {
 		} else {
 			// PC ist an
 			if (config.status !== "on") {
+				logActivity('Serverstatus automatisch auf AN gesetzt (ungeplant)');
 				config.status = "on";
 				save(__dirname + "/config.json", config);
 				updatePresence();
@@ -658,6 +666,16 @@ async function ensureServerControlMessage(channel) {
 			components: [row]
 		});
 	}
+}
+
+// Logging-Funktion
+function logActivity(eventText) {
+	const logPath = path.join(__dirname, 'activity.log');
+	const timestamp = new Date().toISOString().replace('T', ' ').replace('Z', '');
+	const entry = `[${timestamp}] ${eventText}\n`;
+	fs.appendFile(logPath, entry, err => {
+		if (err) console.error('Fehler beim Schreiben ins Log:', err);
+	});
 }
 
 client.login(token);
