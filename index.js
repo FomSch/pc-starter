@@ -130,8 +130,11 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			sendMessage(msg.channel, "The server is currently " + (config.status == "on" ? "online. :white_check_mark:" : config.status == "posting" ? "posting. :warning:" : config.status == "shutting" ? "shutting down. :warning:" :config.status == "rebooting" ? "rebooting. :warning:" : "offline. :octagonal_sign:"), globalsec);
-		break;
+			cp.exec('ping -c 1 ' + serverip, function(err) {
+				let statusMsg = err ? 'Server ist aktuell OFFLINE. :octagonal_sign:' : 'Server ist aktuell ONLINE. :white_check_mark:';
+				sendMessage(msg.channel, statusMsg, globalsec);
+			});
+			return;
 
 		case ("post"):
 
@@ -404,13 +407,10 @@ client.on('interactionCreate', async interaction => {
 			await interaction.reply({ content: 'Server wird neugestartet...', ephemeral: true });
 			break;
 		case 'status':
-			let statusMsg =
-				config.status === 'on' ? 'Server ist online. :white_check_mark:' :
-				config.status === 'posting' ? 'Server startet... :warning:' :
-				config.status === 'shutting' ? 'Server fährt herunter... :warning:' :
-				config.status === 'rebooting' ? 'Server wird neugestartet... :warning:' :
-				'Server ist offline. :octagonal_sign:';
-			await interaction.reply({ content: statusMsg, ephemeral: true });
+			cp.exec('ping -c 1 ' + serverip, function(err) {
+				let statusMsg = err ? 'Server ist aktuell OFFLINE. :octagonal_sign:' : 'Server ist aktuell ONLINE. :white_check_mark:';
+				interaction.reply({ content: statusMsg, ephemeral: true });
+			});
 			break;
 		default:
 			await interaction.reply({ content: 'Unbekannter Button.', ephemeral: true });
