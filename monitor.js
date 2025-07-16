@@ -20,7 +20,8 @@ class PiMonitor {
 
     async getSystemStats() {
         return new Promise((resolve) => {
-            exec('free -m && uptime && cat /proc/loadavg', (err, stdout, stderr) => {
+            // Get CPU usage using top command in batch mode
+            exec('free -m && uptime && top -bn1', (err, stdout) => {
                 if (err) {
                     console.log('Error getting system stats:', err.message);
                     resolve(null);
@@ -51,11 +52,32 @@ class PiMonitor {
                 stats.uptime = this.parseUptime(uptimeLine);
             }
 
-            // Parse CPU load
-            const loadLine = lines.find(line => line.match(/^\d+\.\d+/));
-            if (loadLine) {
-                const loadAvg = parseFloat(loadLine.split(' ')[0]);
-                stats.cpuLoad = Math.round(loadAvg * 100);
+            // Parse CPU usage from top output
+            // Look for the %Cpu line in top output
+            const cpuLine = lines.find(line => line.includes('%Cpu'));
+            if (cpuLine) {
+                // Extract the user + system CPU usage
+                const cpuMatch = cpuLine.match(/(\d+\.\d+)\s+us,\s+(\d+\.\d+)\s+sy/);
+                if (cpuMatch) {
+                    const userCpu = parseFloat(cpuMatch[1]);
+                    const systemCpu = parseFloat(cpuMatch[2]);
+                    stats.cpuLoad = Math.round(userCpu + systemCpu);
+                }
+            }
+            
+            // Fallback to load average if top parsing fails
+            if (!stats.cpuLoad) {
+                const loadLine = lines.find(line => line.match(/load average: \d+\.\d+/));
+                if (loadLine) {
+                    const loadMatch = loadLine.match(/load average: (\d+\.\d+)/);
+                    if (loadMatch) {
+                        const loadAvg = parseFloat(loadMatch[1]);
+                        // Get number of CPU cores to normalize load average
+                        const cpuCount = require('os').cpus().length;
+                        stats.cpuLoad = Math.round((loadAvg / cpuCount) * 100);
+                        if (stats.cpuLoad > 100) stats.cpuLoad = 100; // Cap at 100%
+                    }
+                }
             }
         } catch (error) {
             console.log('Error parsing system data:', error.message);
