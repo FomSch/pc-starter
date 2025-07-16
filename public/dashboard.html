@@ -223,7 +223,7 @@
         
         <div class="controls" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 15px;">
             <h4 style="text-align: center; margin-bottom: 10px; color: #666;">Server Control</h4>
-            <button class="btn btn-secondary" onclick="getServerStatus()">🔍 Status</button>
+            <button class="btn btn-secondary" onclick="getPCStatus()">🖥️ PC Status</button>
             <button class="btn" style="background: #e74c3c; color: white;" onclick="restartServer()">🔄 Restart Bot</button>
         </div>
         
@@ -414,23 +414,27 @@
             window.open(`/api/export/${currentHours}`, '_blank');
         }
         
-        // Server control functions
-        async function getServerStatus() {
+        // PC status function (same logic as Discord bot)
+        async function getPCStatus() {
             try {
-                const response = await fetch('/api/server/status');
+                const response = await fetch('/api/pc/status');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const status = await response.json();
                 
-                const uptimeHours = Math.floor(status.uptime / 3600);
-                const uptimeMinutes = Math.floor((status.uptime % 3600) / 60);
-                const memoryMB = Math.round(status.memory.rss / 1024 / 1024);
+                const statusIcon = status.pcStatus === 'ONLINE' ? '✅' : '❌';
                 
-                alert(`🖥️ Server Status:\n\n` +
-                      `Status: ${status.status}\n` +
-                      `Uptime: ${uptimeHours}h ${uptimeMinutes}m\n` +
-                      `Memory: ${memoryMB} MB\n` +
-                      `Process ID: ${status.pid}`);
+                alert(`🖥️ PC Status Check:\n\n` +
+                      `${statusIcon} PC Status: ${status.pcStatus}\n` +
+                      `🌐 PC IP: ${status.pcIP}\n` +
+                      `🤖 Bot Status: ${status.botStatus}\n` +
+                      `⏰ Checked: ${new Date(status.timestamp).toLocaleString()}`);
+                      
             } catch (error) {
-                alert('❌ Error getting server status: ' + error.message);
+                alert('❌ Error checking PC status: ' + error.message);
             }
         }
         

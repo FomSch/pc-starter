@@ -81,6 +81,21 @@ class WebServer {
             res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
         });
 
+        // PC status endpoint (same logic as Discord bot)
+        this.app.get('/api/pc/status', (req, res) => {
+            const { exec } = require('child_process');
+            const config = require('./config.json');
+            
+            exec(`ping -c 1 ${config.serverip}`, (err) => {
+                res.json({
+                    pcStatus: err ? 'OFFLINE' : 'ONLINE',
+                    pcIP: config.serverip,
+                    timestamp: new Date().toISOString(),
+                    botStatus: 'ONLINE' // Bot is online if this responds
+                });
+            });
+        });
+
         // Server control endpoints
         this.app.post('/api/server/restart', (req, res) => {
             try {
@@ -92,15 +107,6 @@ class WebServer {
             } catch (error) {
                 res.status(500).json({ error: error.message });
             }
-        });
-
-        this.app.get('/api/server/status', (req, res) => {
-            res.json({
-                status: 'running',
-                uptime: process.uptime(),
-                memory: process.memoryUsage(),
-                pid: process.pid
-            });
         });
     }
 
