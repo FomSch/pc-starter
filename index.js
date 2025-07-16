@@ -1,19 +1,12 @@
-// ------------------------
-// neuer code für den servercontrol
-// ------------------------
-
-// ------------------------
-
-// ------------------------
-
-// ------------------------
-
 const discord = require("discord.js");
 const fs = require("fs");
 var cp = require('child_process');
 const { MessageActionRow, MessageButton } = require('discord.js');
 const path = require('path');
 const PiMonitor = require('./monitor.js');
+const Database = require('./database.js');
+const WebServer = require('./webserver.js');
+
 var client = new discord.Client({
 	intents: ["GUILDS", "GUILD_MESSAGES"]
 });
@@ -30,11 +23,17 @@ var serverip = "";
 var config = require("./config.json");
 loadconfig();
 
-// Initialize monitoring
+// Initialize monitoring, database, and web server
 const monitor = new PiMonitor();
+const database = new Database();
+const webServer = new WebServer(database, monitor);
 
 client.on("ready", async () => {
 	console.log("Bot ready");
+	
+	// Start web server
+	webServer.start();
+	
 	updatePresence();
 	let channel = await client.channels.fetch(channelid);
 	if (channel && channel.type === "GUILD_TEXT") {
@@ -113,7 +112,7 @@ client.on("messageCreate", async (msg) => {
 				return;
 			}
 
-			var help = `**__USABLE COMMANDS__**\n1. \`\`${prefix}post\`\`\n2. \`\`${prefix}reboot\`\`\n3. \`\`${prefix}shutdown\`\`\n4. \`\`${prefix}status\`\`\n5. \`\`${prefix}temp\`\`\n6. \`\`${prefix}monitor\`\``;
+			var help = `**__USABLE COMMANDS__**\n1. \`\`${prefix}post\`\`\n2. \`\`${prefix}reboot\`\`\n3. \`\`${prefix}shutdown\`\`\n4. \`\`${prefix}status\`\`\n5. \`\`${prefix}temp\`\`\n6. \`\`${prefix}monitor\`\`\n7. \`\`${prefix}dashboard\`\``;
 
 			if (msg.member.permissions.has("ADMINISTRATOR")) {
 				help += `\n\n**__COMMANDS FOR ADMINISTRATOR__**\n1. \`\`${prefix}force-shutdown\`\`\n2. \`\`${prefix}setchannel\`\`\n3. \`\`${prefix}reload\`\`\n4. \`\`${prefix}ping\`\``;
@@ -388,6 +387,22 @@ client.on("messageCreate", async (msg) => {
 			sendMessage(msg.channel, monitorMsg, globalsec * 2);
 			break;
 
+		case ("dashboard"):
+
+			if (required_role.use && !msg.member.roles.cache.find(role => role.name === required_role.name)) {
+				sendMessage(msg.channel, `Sorry, you don't have the right privileges. Use \`\`${prefix}help\`\` for available commands`, globalsec);
+				return;
+			}
+
+			if (args.length != 1) {
+				sendMessage(msg.channel, `This command functions without arguments. Please use \`\`${prefix}help\`\``, globalsec);
+				return;
+			}
+
+			const dashboardURL = webServer.getURL();
+			sendMessage(msg.channel, `📊 **Temperature Dashboard**\nAccess your interactive dashboard here:\n${dashboardURL}\n\n🔥 **Features:**\n• Real-time temperature graphs\n• Historical data analysis\n• Export to CSV\n• Mobile responsive`, globalsec * 3);
+			break;
+
 		case ("reload"):
 
 			if (!msg.member.permissions.has('ADMINISTRATOR')) {
@@ -527,6 +542,13 @@ client.on('interactionCreate', async interaction => {
 			const history = await monitor.getTemperatureHistory(6);
 			const historyText = monitor.formatTemperatureHistory(history);
 			await interaction.reply({ content: historyText, ephemeral: true });
+			break;
+		case 'dashboard':
+			const dashboardURL = webServer.getURL();
+			await interaction.reply({ 
+				content: `📊 **Temperature Dashboard**\nAccess your interactive dashboard here:\n${dashboardURL}\n\n🔥 **Features:**\n• Real-time temperature graphs\n• Historical data analysis\n• Export to CSV\n• Mobile responsive`, 
+				ephemeral: true 
+			});
 			break;
 		default:
 			await interaction.reply({ content: 'Unbekannter Button.', ephemeral: true });
@@ -759,8 +781,15 @@ setInterval(() => {
 setInterval(async () => {
 	const temp = await monitor.getCPUTemp();
 	if (temp !== null) {
-		// Save temperature to history
+		// Get system stats for database logging
+		const systemStats = await monitor.getSystemStats();
+		const tempStatus = monitor.getTempStatus(temp);
+		
+		// Save temperature to file-based history (existing)
 		await monitor.saveTemperatureHistory(temp);
+		
+		// Save temperature to database (new)
+		database.logTemperature(temp, tempStatus.status, systemStats);
 
 		// Check for temperature alerts
 		let alertMessage = null;
@@ -814,7 +843,8 @@ async function ensureServerControlMessage(channel) {
 	const monitorRow = new MessageActionRow().addComponents(
 		new MessageButton().setCustomId('temp').setLabel('🌡️ Temp').setStyle('SECONDARY'),
 		new MessageButton().setCustomId('monitor').setLabel('📊 Monitor').setStyle('SECONDARY'),
-		new MessageButton().setCustomId('temp_history').setLabel('📈 History').setStyle('SECONDARY')
+		new MessageButton().setCustomId('temp_history').setLabel('📈 History').setStyle('SECONDARY'),
+		new MessageButton().setCustomId('dashboard').setLabel('🌐 Dashboard').setStyle('SECONDARY')
 	);
 	if (!message) {
 		// Sende neue Servercontrol-Nachricht mit Buttons
