@@ -4,7 +4,7 @@ var cp = require('child_process');
 const { MessageActionRow, MessageButton } = require('discord.js');
 const path = require('path');
 const PiMonitor = require('./monitor.js');
-const Database = require('./database.js');
+const TemperatureDB = require('./database.js');
 const WebServer = require('./webserver.js');
 
 var client = new discord.Client({
@@ -25,7 +25,7 @@ loadconfig();
 
 // Initialize monitoring, database, and web server
 const monitor = new PiMonitor();
-const database = new Database();
+const database = new TemperatureDB();
 const webServer = new WebServer(database, monitor);
 
 client.on("ready", async () => {

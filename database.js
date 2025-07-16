@@ -1,7 +1,7 @@
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const path = require('path');
 
-class Database {
+class TemperatureDB {
     constructor() {
         this.dbPath = path.join(__dirname, 'temperature.db');
         this.db = null;
@@ -9,14 +9,13 @@ class Database {
     }
 
     init() {
-        this.db = new sqlite3.Database(this.dbPath, (err) => {
-            if (err) {
-                console.error('Error opening database:', err.message);
-            } else {
-                console.log('Connected to SQLite database');
-                this.createTables();
-            }
-        });
+        try {
+            this.db = new Database(this.dbPath);
+            console.log('Connected to SQLite database');
+            this.createTables();
+        } catch (err) {
+            console.error('Error opening database:', err.message);
+        }
     }
 
     createTables() {
@@ -33,13 +32,12 @@ class Database {
             )
         `;
 
-        this.db.run(createTableSQL, (err) => {
-            if (err) {
-                console.error('Error creating table:', err.message);
-            } else {
-                console.log('Temperature logs table ready');
-            }
-        });
+        try {
+            this.db.exec(createTableSQL);
+            console.log('Temperature logs table ready');
+        } catch (err) {
+            console.error('Error creating table:', err.message);
+        }
     }
 
     logTemperature(temp, status, systemStats = {}) {
@@ -57,117 +55,115 @@ class Database {
             systemStats.uptime || null
         ];
 
-        this.db.run(insertSQL, values, function(err) {
-            if (err) {
-                console.error('Error logging temperature:', err.message);
-            } else {
-                console.log(`[DB] Temperature logged: ${temp}°C (ID: ${this.lastID})`);
-            }
-        });
+        try {
+            const info = this.db.prepare(insertSQL).run(...values);
+            console.log(`[DB] Temperature logged: ${temp}°C (ID: ${info.lastInsertRowid})`);
+        } catch (err) {
+            console.error('Error logging temperature:', err.message);
+        }
     }
 
     getTemperatureData(hours = 24) {
-        return new Promise((resolve, reject) => {
-            const query = `
-                SELECT 
-                    datetime(timestamp, 'localtime') as timestamp,
-                    temperature,
-                    status,
-                    cpu_load,
-                    memory_usage,
-                    memory_total
-                FROM temperature_logs 
-                WHERE timestamp >= datetime('now', '-${hours} hours')
-                ORDER BY timestamp ASC
-            `;
+        const query = `
+            SELECT 
+                datetime(timestamp, 'localtime') as timestamp,
+                temperature,
+                status,
+                cpu_load,
+                memory_usage,
+                memory_total
+            FROM temperature_logs 
+            WHERE timestamp >= datetime('now', '-${hours} hours')
+            ORDER BY timestamp ASC
+        `;
 
-            this.db.all(query, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
-            });
-        });
+        try {
+            return this.db.prepare(query).all();
+        } catch (err) {
+            console.error('Error getting temperature data:', err.message);
+            return [];
+        }
     }
 
     getTemperatureStats(hours = 24) {
-        return new Promise((resolve, reject) => {
-            const query = `
-                SELECT 
-                    COUNT(*) as count,
-                    MIN(temperature) as min_temp,
-                    MAX(temperature) as max_temp,
-                    AVG(temperature) as avg_temp,
-                    MIN(datetime(timestamp, 'localtime')) as first_reading,
-                    MAX(datetime(timestamp, 'localtime')) as last_reading
-                FROM temperature_logs 
-                WHERE timestamp >= datetime('now', '-${hours} hours')
-            `;
+        const query = `
+            SELECT 
+                COUNT(*) as count,
+                MIN(temperature) as min_temp,
+                MAX(temperature) as max_temp,
+                AVG(temperature) as avg_temp,
+                MIN(datetime(timestamp, 'localtime')) as first_reading,
+                MAX(datetime(timestamp, 'localtime')) as last_reading
+            FROM temperature_logs 
+            WHERE timestamp >= datetime('now', '-${hours} hours')
+        `;
 
-            this.db.all(query, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows[0]);
-                }
-            });
-        });
+        try {
+            return this.db.prepare(query).get();
+        } catch (err) {
+            console.error('Error getting temperature stats:', err.message);
+            return {
+                count: 0,
+                min_temp: null,
+                max_temp: null,
+                avg_temp: null,
+                first_reading: null,
+                last_reading: null
+            };
+        }
     }
 
     exportToCSV(hours = 24) {
-        return new Promise((resolve, reject) => {
-            const query = `
-                SELECT 
-                    datetime(timestamp, 'localtime') as timestamp,
-                    temperature,
-                    status,
-                    cpu_load,
-                    memory_usage,
-                    memory_total,
-                    uptime
-                FROM temperature_logs 
-                WHERE timestamp >= datetime('now', '-${hours} hours')
-                ORDER BY timestamp ASC
-            `;
+        const query = `
+            SELECT 
+                datetime(timestamp, 'localtime') as timestamp,
+                temperature,
+                status,
+                cpu_load,
+                memory_usage,
+                memory_total,
+                uptime
+            FROM temperature_logs 
+            WHERE timestamp >= datetime('now', '-${hours} hours')
+            ORDER BY timestamp ASC
+        `;
 
-            this.db.all(query, [], (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    // Convert to CSV format
-                    const headers = ['Timestamp', 'Temperature', 'Status', 'CPU Load', 'Memory Usage', 'Memory Total', 'Uptime'];
-                    let csv = headers.join(',') + '\n';
-                    
-                    rows.forEach(row => {
-                        csv += [
-                            row.timestamp,
-                            row.temperature,
-                            row.status,
-                            row.cpu_load || '',
-                            row.memory_usage || '',
-                            row.memory_total || '',
-                            row.uptime || ''
-                        ].join(',') + '\n';
-                    });
-                    
-                    resolve(csv);
-                }
+        try {
+            const rows = this.db.prepare(query).all();
+            
+            // Convert to CSV format
+            const headers = ['Timestamp', 'Temperature', 'Status', 'CPU Load', 'Memory Usage', 'Memory Total', 'Uptime'];
+            let csv = headers.join(',') + '\n';
+            
+            rows.forEach(row => {
+                csv += [
+                    row.timestamp,
+                    row.temperature,
+                    row.status,
+                    row.cpu_load || '',
+                    row.memory_usage || '',
+                    row.memory_total || '',
+                    row.uptime || ''
+                ].join(',') + '\n';
             });
-        });
+            
+            return csv;
+        } catch (err) {
+            console.error('Error exporting to CSV:', err.message);
+            return 'Error generating CSV';
+        }
     }
 
     close() {
         if (this.db) {
-            this.db.close((err) => {
-                if (err) {
-                    console.error('Error closing database:', err.message);
-                } else {
-                    console.log('Database connection closed');
-                }
-            });
+            try {
+                this.db.close();
+                console.log('Database connection closed');
+            } catch (err) {
+                console.error('Error closing database:', err.message);
+            }
         }
     }
 }
 
-module.exports = Database;
+module.exports = TemperatureDB;
