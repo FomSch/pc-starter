@@ -221,6 +221,12 @@
             <button class="btn btn-secondary" onclick="exportData()">Export CSV</button>
         </div>
         
+        <div class="controls" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 15px;">
+            <h4 style="text-align: center; margin-bottom: 10px; color: #666;">Server Control</h4>
+            <button class="btn btn-secondary" onclick="getServerStatus()">🔍 Status</button>
+            <button class="btn" style="background: #e74c3c; color: white;" onclick="restartServer()">🔄 Restart Bot</button>
+        </div>
+        
         <div class="chart-container">
             <canvas id="temperatureChart"></canvas>
         </div>
@@ -406,6 +412,47 @@
         // Export data
         function exportData() {
             window.open(`/api/export/${currentHours}`, '_blank');
+        }
+        
+        // Server control functions
+        async function getServerStatus() {
+            try {
+                const response = await fetch('/api/server/status');
+                const status = await response.json();
+                
+                const uptimeHours = Math.floor(status.uptime / 3600);
+                const uptimeMinutes = Math.floor((status.uptime % 3600) / 60);
+                const memoryMB = Math.round(status.memory.rss / 1024 / 1024);
+                
+                alert(`🖥️ Server Status:\n\n` +
+                      `Status: ${status.status}\n` +
+                      `Uptime: ${uptimeHours}h ${uptimeMinutes}m\n` +
+                      `Memory: ${memoryMB} MB\n` +
+                      `Process ID: ${status.pid}`);
+            } catch (error) {
+                alert('❌ Error getting server status: ' + error.message);
+            }
+        }
+        
+        async function restartServer() {
+            if (!confirm('🔄 Are you sure you want to restart the Discord bot?\n\nThis will temporarily disconnect the bot from Discord.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/server/restart', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Bot restart initiated!\n\nThe bot will restart in a few seconds. If you\'re using systemd, it will automatically restart.');
+                } else {
+                    alert('❌ Error restarting server: ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ Error restarting server: ' + error.message);
+            }
         }
         
         // Socket events

@@ -80,6 +80,28 @@ class WebServer {
         this.app.get('/dashboard', (req, res) => {
             res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
         });
+
+        // Server control endpoints
+        this.app.post('/api/server/restart', (req, res) => {
+            try {
+                // This would restart the bot process
+                res.json({ success: true, message: 'Bot restart initiated' });
+                setTimeout(() => {
+                    process.exit(0); // Exit gracefully, systemd will restart
+                }, 1000);
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.get('/api/server/status', (req, res) => {
+            res.json({
+                status: 'running',
+                uptime: process.uptime(),
+                memory: process.memoryUsage(),
+                pid: process.pid
+            });
+        });
     }
 
     setupSocketIO() {
