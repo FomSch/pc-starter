@@ -13,6 +13,7 @@ const fs = require("fs");
 var cp = require('child_process');
 const { MessageActionRow, MessageButton } = require('discord.js');
 const path = require('path');
+const PiMonitor = require('./monitor.js');
 var client = new discord.Client({
 	intents: ["GUILDS", "GUILD_MESSAGES"]
 });
@@ -29,6 +30,9 @@ var serverip = "";
 var config = require("./config.json");
 loadconfig();
 
+// Initialize monitoring
+const monitor = new PiMonitor();
+
 client.on("ready", async () => {
 	console.log("Bot ready");
 	updatePresence();
@@ -42,7 +46,7 @@ client.on('messageCreate', msg => {
 	console.log(`[Test] Nachricht empfangen: ${msg.content} | Von: ${msg.author.tag}`);
 });
 
-client.on("messageCreate", (msg) => {
+client.on("messageCreate", async (msg) => {
 
 	if (msg.author.bot || !msg.content.startsWith(prefix)) {
 		return;
@@ -68,7 +72,7 @@ client.on("messageCreate", (msg) => {
 			return;
 		}
 
-		if(config.channel == msg.channel.id) {
+		if (config.channel == msg.channel.id) {
 			sendMessage(msg.channel, `Channel is already set to ` + msg.channel.name, globalsec);
 		}
 
@@ -93,7 +97,7 @@ client.on("messageCreate", (msg) => {
 	switch (args[0]) {
 
 		case ("help"):
-		
+
 			if (required_role.use && !msg.member.roles.cache.find(role => role.name === required_role.name)) {
 				sendMessage(msg.channel, `Sorry, you don't have the right privileges. You can ask a Staff member for help.`, globalsec);
 				return;
@@ -109,17 +113,17 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			var help = `**__USABLE COMMANDS__**\n1. \`\`${prefix}post\`\`\n2. \`\`${prefix}reboot\`\`\n3. \`\`${prefix}shutdown\`\`\n4. \`\`${prefix}status\`\``;
+			var help = `**__USABLE COMMANDS__**\n1. \`\`${prefix}post\`\`\n2. \`\`${prefix}reboot\`\`\n3. \`\`${prefix}shutdown\`\`\n4. \`\`${prefix}status\`\`\n5. \`\`${prefix}temp\`\`\n6. \`\`${prefix}monitor\`\``;
 
 			if (msg.member.permissions.has("ADMINISTRATOR")) {
 				help += `\n\n**__COMMANDS FOR ADMINISTRATOR__**\n1. \`\`${prefix}force-shutdown\`\`\n2. \`\`${prefix}setchannel\`\`\n3. \`\`${prefix}reload\`\`\n4. \`\`${prefix}ping\`\``;
 			}
 
 			sendMessage(msg.channel, help, globalsec * 2);
-		break;
+			break;
 
 		case ("status"):
-		
+
 			if (required_role.use && !msg.member.roles.cache.find(role => role.name === required_role.name)) {
 				sendMessage(msg.channel, `Sorry, you don't have the right privileges. Use \`\`${prefix}help\`\` for available commands`, globalsec);
 				return;
@@ -130,7 +134,7 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			cp.exec('ping -c 1 ' + serverip, function(err) {
+			cp.exec('ping -c 1 ' + serverip, function (err) {
 				let statusMsg = err ? 'Server ist aktuell OFFLINE. :octagonal_sign:' : 'Server ist aktuell ONLINE. :white_check_mark:';
 				sendMessage(msg.channel, statusMsg, globalsec);
 			});
@@ -152,7 +156,7 @@ client.on("messageCreate", (msg) => {
 
 				if (config.status == "on") {
 					sendMessage(msg.channel, `The server is already up and running. :white_check_mark:`, globalsec);
-				} 
+				}
 
 				else {
 					preoperr(msg.channel);
@@ -160,8 +164,7 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			cp.exec(__dirname + "/shellscripts/post.sh", function(err, stdout, stderr) {
-
+			cp.exec(__dirname + "/shellscripts/post.sh", function (err) {
 				if (err != null) {
 					sendMessage(msg.channel, `An error occured :exclamation: \n\`\`${err}\`\``, globalsec * 2);
 					return;
@@ -174,7 +177,7 @@ client.on("messageCreate", (msg) => {
 
 			afterposton(msg.channel);
 			logActivity('Server wurde gestartet (Textbefehl)');
-		break;
+			break;
 
 		case ("reboot"):
 
@@ -201,7 +204,7 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			cp.exec(__dirname + "/shellscripts/reboot.sh", function(err, stdout, stderr) {
+			cp.exec(__dirname + "/shellscripts/reboot.sh", function (err, stdout, stderr) {
 				console.log(stdout);
 				console.log(stderr);
 
@@ -217,7 +220,7 @@ client.on("messageCreate", (msg) => {
 
 			afterreboot(msg.channel);
 			logActivity('Server wurde neugestartet (Textbefehl)');
-		break;
+			break;
 
 		case ("shutdown"):
 
@@ -243,7 +246,7 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			cp.exec(__dirname + "/shellscripts/shutdown.sh", function(err, stdout, stderr) {
+			cp.exec(__dirname + "/shellscripts/shutdown.sh", function (err, stdout, stderr) {
 				console.log(stdout);
 				console.log(stderr);
 
@@ -259,7 +262,7 @@ client.on("messageCreate", (msg) => {
 
 			aftershutoff(msg.channel);
 			logActivity('Server wurde heruntergefahren (Textbefehl)');
-		break;		
+			break;
 
 		case ("force-shutdown"):
 
@@ -273,7 +276,7 @@ client.on("messageCreate", (msg) => {
 				return;
 			}
 
-			cp.exec(__dirname + "/shellscripts/force-shutdown.sh", function(err, stdout, stderr) {
+			cp.exec(__dirname + "/shellscripts/force-shutdown.sh", function (err, stdout, stderr) {
 				console.log(stdout);
 				console.log(stderr);
 
@@ -286,7 +289,7 @@ client.on("messageCreate", (msg) => {
 			config.status = "off";
 			save(__dirname + "/config.json", config);
 			sendMessage(msg.channel, `The server is being forced to shut down now. :octagonal_sign:`, globalsec);
-		break;
+			break;
 
 		case ("ping"):
 
@@ -298,9 +301,9 @@ client.on("messageCreate", (msg) => {
 			if (args.length != 1) {
 				sendMessage(msg.channel, `This command functions without arguments. Please use \`\`${prefix}help\`\``, globalsec);
 				return;
-			} 	
+			}
 
-			cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+			cp.exec("ping -c 3 " + serverip, function (err, stdout, stderr) {
 				console.log(stdout);
 				console.log(stderr);
 
@@ -314,7 +317,76 @@ client.on("messageCreate", (msg) => {
 					return;
 				}
 			});
-		break;	
+			break;
+
+		case ("temp"):
+
+			if (required_role.use && !msg.member.roles.cache.find(role => role.name === required_role.name)) {
+				sendMessage(msg.channel, `Sorry, you don't have the right privileges. Use \`\`${prefix}help\`\` for available commands`, globalsec);
+				return;
+			}
+
+			if (args.length == 1) {
+				// Basic temperature check
+				const temp = await monitor.getCPUTemp();
+				const tempStatus = monitor.getTempStatus(temp);
+
+				if (temp === null) {
+					sendMessage(msg.channel, `🌡️ **Pi Temperature:** Unable to read temperature`, globalsec);
+				} else {
+					sendMessage(msg.channel, `🌡️ **Pi Temperature:** ${temp}°C ${tempStatus.emoji} (${tempStatus.status})`, globalsec);
+				}
+			} else if (args.length == 2 && args[1] === "history") {
+				// Temperature history
+				const history = await monitor.getTemperatureHistory(6);
+				const historyText = monitor.formatTemperatureHistory(history);
+				sendMessage(msg.channel, historyText, globalsec * 3);
+			} else {
+				sendMessage(msg.channel, `Usage: \`\`${prefix}temp\`\` or \`\`${prefix}temp history\`\``, globalsec);
+			}
+			break;
+
+		case ("monitor"):
+
+			if (required_role.use && !msg.member.roles.cache.find(role => role.name === required_role.name)) {
+				sendMessage(msg.channel, `Sorry, you don't have the right privileges. Use \`\`${prefix}help\`\` for available commands`, globalsec);
+				return;
+			}
+
+			if (args.length != 1) {
+				sendMessage(msg.channel, `This command functions without arguments. Please use \`\`${prefix}help\`\``, globalsec);
+				return;
+			}
+
+			const temp = await monitor.getCPUTemp();
+			const tempStatus = monitor.getTempStatus(temp);
+			const systemStats = await monitor.getSystemStats();
+
+			let monitorMsg = `📊 **Raspberry Pi Status**\n`;
+
+			if (temp !== null) {
+				monitorMsg += `🌡️ Temperature: ${temp}°C ${tempStatus.emoji} (${tempStatus.status})\n`;
+			} else {
+				monitorMsg += `🌡️ Temperature: Unable to read\n`;
+			}
+
+			if (systemStats) {
+				if (systemStats.memTotal && systemStats.memUsed) {
+					monitorMsg += `💾 Memory: ${systemStats.memUsed}MB / ${systemStats.memTotal}MB (${systemStats.memUsage}%)\n`;
+				}
+				if (systemStats.uptime) {
+					monitorMsg += `⏱️ Uptime: ${systemStats.uptime}\n`;
+				}
+				if (systemStats.cpuLoad !== undefined) {
+					monitorMsg += `🖥️ CPU Load: ${systemStats.cpuLoad}%\n`;
+				}
+			}
+
+			// Add server status
+			monitorMsg += `🖥️ Server Status: ${config.status.toUpperCase()}`;
+
+			sendMessage(msg.channel, monitorMsg, globalsec * 2);
+			break;
 
 		case ("reload"):
 
@@ -327,7 +399,7 @@ client.on("messageCreate", (msg) => {
 				sendMessage(msg.channel, `This command functions without arguments. Please use \`\`${prefix}reload\`\``, globalsec);
 				return;
 			}
-		
+
 			delete require.cache[require.resolve("./config.json")];
 			config = require("./config.json");
 			loadconfig();
@@ -335,12 +407,12 @@ client.on("messageCreate", (msg) => {
 			sendMessage(msg.channel, `The files have been reloaded. :recycle:`, globalsec);
 
 			client.login(token);
-		break;
+			break;
 
 		default:
 
 			sendMessage(msg.channel, `No command found. Use \`\`${prefix}help\`\` for available commands`, globalsec);
-		break;
+			break;
 	}
 });
 
@@ -358,7 +430,7 @@ client.on('interactionCreate', async interaction => {
 				return;
 			}
 			logActivity('Server wurde gestartet (Button)');
-			cp.exec(__dirname + '/shellscripts/post.sh', function(err) {
+			cp.exec(__dirname + '/shellscripts/post.sh', function (err) {
 				if (err) {
 					interaction.followUp({ content: `Fehler beim Starten: \`${err}\``, ephemeral: true });
 					return;
@@ -376,7 +448,7 @@ client.on('interactionCreate', async interaction => {
 				return;
 			}
 			logActivity('Server wurde heruntergefahren (Button)');
-			cp.exec(__dirname + '/shellscripts/shutdown.sh', function(err) {
+			cp.exec(__dirname + '/shellscripts/shutdown.sh', function (err) {
 				if (err) {
 					interaction.followUp({ content: `Fehler beim Herunterfahren: \`${err}\``, ephemeral: true });
 					return;
@@ -394,7 +466,7 @@ client.on('interactionCreate', async interaction => {
 				return;
 			}
 			logActivity('Server wurde neugestartet (Button)');
-			cp.exec(__dirname + '/shellscripts/reboot.sh', function(err) {
+			cp.exec(__dirname + '/shellscripts/reboot.sh', function (err) {
 				if (err) {
 					interaction.followUp({ content: `Fehler beim Reboot: \`${err}\``, ephemeral: true });
 					return;
@@ -407,10 +479,54 @@ client.on('interactionCreate', async interaction => {
 			await interaction.reply({ content: 'Server wird neugestartet...', ephemeral: true });
 			break;
 		case 'status':
-			cp.exec('ping -c 1 ' + serverip, function(err) {
+			cp.exec('ping -c 1 ' + serverip, function (err) {
 				let statusMsg = err ? 'Server ist aktuell OFFLINE. :octagonal_sign:' : 'Server ist aktuell ONLINE. :white_check_mark:';
 				interaction.reply({ content: statusMsg, ephemeral: true });
 			});
+			break;
+		case 'temp':
+			const temp = await monitor.getCPUTemp();
+			const tempStatus = monitor.getTempStatus(temp);
+
+			if (temp === null) {
+				await interaction.reply({ content: `🌡️ **Pi Temperature:** Unable to read temperature`, ephemeral: true });
+			} else {
+				await interaction.reply({ content: `🌡️ **Pi Temperature:** ${temp}°C ${tempStatus.emoji} (${tempStatus.status})`, ephemeral: true });
+			}
+			break;
+		case 'monitor':
+			const monitorTemp = await monitor.getCPUTemp();
+			const monitorTempStatus = monitor.getTempStatus(monitorTemp);
+			const systemStats = await monitor.getSystemStats();
+
+			let monitorMsg = `📊 **Raspberry Pi Status**\n`;
+
+			if (monitorTemp !== null) {
+				monitorMsg += `🌡️ Temperature: ${monitorTemp}°C ${monitorTempStatus.emoji} (${monitorTempStatus.status})\n`;
+			} else {
+				monitorMsg += `🌡️ Temperature: Unable to read\n`;
+			}
+
+			if (systemStats) {
+				if (systemStats.memTotal && systemStats.memUsed) {
+					monitorMsg += `💾 Memory: ${systemStats.memUsed}MB / ${systemStats.memTotal}MB (${systemStats.memUsage}%)\n`;
+				}
+				if (systemStats.uptime) {
+					monitorMsg += `⏱️ Uptime: ${systemStats.uptime}\n`;
+				}
+				if (systemStats.cpuLoad !== undefined) {
+					monitorMsg += `🖥️ CPU Load: ${systemStats.cpuLoad}%\n`;
+				}
+			}
+
+			monitorMsg += `🖥️ Server Status: ${config.status.toUpperCase()}`;
+
+			await interaction.reply({ content: monitorMsg, ephemeral: true });
+			break;
+		case 'temp_history':
+			const history = await monitor.getTemperatureHistory(6);
+			const historyText = monitor.formatTemperatureHistory(history);
+			await interaction.reply({ content: historyText, ephemeral: true });
 			break;
 		default:
 			await interaction.reply({ content: 'Unbekannter Button.', ephemeral: true });
@@ -432,7 +548,7 @@ function preoperr(c) {
 	else {
 		sendMessage(c, `The server is currently rebooting. :warning:\nPlease wait for the previous operation to finish!`, globalsec);
 	}
-	
+
 	return;
 }
 
@@ -445,7 +561,7 @@ function afterposton(channel, attempts = 0, maxAttempts = 30, delayMs = 10000) {
 		return;
 	}
 
-	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+	cp.exec("ping -c 3 " + serverip, function (err, stdout, stderr) {
 		if (err != null) {
 			// Optional: Log den Fehler für Debugging
 			console.log(`Ping-Versuch ${attempts + 1} fehlgeschlagen:`, stderr || err);
@@ -485,7 +601,7 @@ function afterposton(c) {
 */
 
 function aftershutoff(c) {
-	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+	cp.exec("ping -c 3 " + serverip, function (err, stdout, stderr) {
 		console.log(stdout);
 		console.log(stderr);
 
@@ -506,7 +622,7 @@ function aftershutoff(c) {
 
 function afterreboot(c) {
 
-	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+	cp.exec("ping -c 3 " + serverip, function (err, stdout, stderr) {
 		console.log(stdout);
 		console.log(stderr);
 
@@ -524,7 +640,7 @@ function afterreboot(c) {
 
 function afterrebooton(c) {
 
-	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
+	cp.exec("ping -c 3 " + serverip, function (err, stdout, stderr) {
 		console.log(stdout);
 		console.log(stderr);
 
@@ -574,45 +690,49 @@ async function sendMessage(c, text, sec) {
 }
 
 // Presence-Update Funktion
-function updatePresence() {
+async function updatePresence() {
 	if (!client.user) return;
+
+	const temp = await monitor.getCPUTemp();
+	const tempStatus = monitor.getTempStatus(temp);
+	const tempDisplay = temp !== null ? `${temp}°C ${tempStatus.emoji}` : 'N/A';
+
 	if (config.status === "on") {
 		client.user.setPresence({
 			status: "online",
-			activities: [{ name: "PC: AN", type: "WATCHING" }]
+			activities: [{ name: `PC: AN | Pi: ${tempDisplay}`, type: "WATCHING" }]
 		});
 	} else if (config.status === "off") {
 		client.user.setPresence({
 			status: "idle",
-			activities: [{ name: "PC: AUS", type: "WATCHING" }]
+			activities: [{ name: `PC: AUS | Pi: ${tempDisplay}`, type: "WATCHING" }]
 		});
 	} else if (config.status === "posting") {
 		client.user.setPresence({
 			status: "dnd",
-			activities: [{ name: "PC: STARTET...", type: "WATCHING" }]
+			activities: [{ name: `PC: STARTET... | Pi: ${tempDisplay}`, type: "WATCHING" }]
 		});
 	} else if (config.status === "shutting") {
 		client.user.setPresence({
 			status: "dnd",
-			activities: [{ name: "PC: FÄHRT RUNTER...", type: "WATCHING" }]
+			activities: [{ name: `PC: FÄHRT RUNTER... | Pi: ${tempDisplay}`, type: "WATCHING" }]
 		});
 	} else if (config.status === "rebooting") {
 		client.user.setPresence({
 			status: "dnd",
-			activities: [{ name: "PC: REBOOT...", type: "WATCHING" }]
+			activities: [{ name: `PC: REBOOT... | Pi: ${tempDisplay}`, type: "WATCHING" }]
 		});
 	} else {
 		client.user.setPresence({
 			status: "idle",
-			activities: [{ name: "Status unbekannt", type: "WATCHING" }]
+			activities: [{ name: `Status unbekannt | Pi: ${tempDisplay}`, type: "WATCHING" }]
 		});
 	}
 }
 
 // Regelmäßiger Ping-Check alle 2 Stunden
 setInterval(() => {
-	cp.exec("ping -c 3 " + serverip, function(err, stdout, stderr) {
-		let previousStatus = config.status;
+	cp.exec("ping -c 3 " + serverip, function (err) {
 		if (err != null) {
 			// PC ist aus
 			if (config.status !== "off") {
@@ -635,6 +755,46 @@ setInterval(() => {
 	});
 }, 2 * 60 * 60 * 1000); // alle 2 Stunden
 
+// Temperature monitoring and alerts every 5 minutes
+setInterval(async () => {
+	const temp = await monitor.getCPUTemp();
+	if (temp !== null) {
+		// Save temperature to history
+		await monitor.saveTemperatureHistory(temp);
+
+		// Check for temperature alerts
+		let alertMessage = null;
+		let shouldAlert = false;
+
+		if (temp >= 80) {
+			alertMessage = `🚨 **CRITICAL TEMPERATURE WARNING**\nPi temperature: ${temp}°C 🔥\nImmediate action required! Check cooling system!`;
+			shouldAlert = true;
+			logActivity(`Kritische Temperatur erreicht: ${temp}°C`);
+		} else if (temp >= 70) {
+			alertMessage = `⚠️ **HIGH TEMPERATURE WARNING**\nPi temperature: ${temp}°C 🟠\nConsider checking ventilation and cooling.`;
+			shouldAlert = true;
+			logActivity(`Hohe Temperatur erreicht: ${temp}°C`);
+		}
+
+		// Send alert to channel if needed
+		if (shouldAlert && channelid) {
+			try {
+				const channel = await client.channels.fetch(channelid);
+				if (channel && channel.type === "GUILD_TEXT") {
+					channel.send(alertMessage);
+				}
+			} catch (error) {
+				console.log('Error sending temperature alert:', error.message);
+			}
+		}
+
+		// Update presence with current temperature
+		updatePresence();
+
+		console.log(`[TempMonitor] Current temperature: ${temp}°C`);
+	}
+}, 5 * 60 * 1000); // alle 5 Minuten
+
 async function ensureServerControlMessage(channel) {
 	let serverControlMessageId = config.serverControlMessageId;
 	let message;
@@ -651,19 +811,24 @@ async function ensureServerControlMessage(channel) {
 		new MessageButton().setCustomId('reboot').setLabel('Reboot').setStyle('PRIMARY'),
 		new MessageButton().setCustomId('status').setLabel('Status').setStyle('SECONDARY')
 	);
+	const monitorRow = new MessageActionRow().addComponents(
+		new MessageButton().setCustomId('temp').setLabel('🌡️ Temp').setStyle('SECONDARY'),
+		new MessageButton().setCustomId('monitor').setLabel('📊 Monitor').setStyle('SECONDARY'),
+		new MessageButton().setCustomId('temp_history').setLabel('📈 History').setStyle('SECONDARY')
+	);
 	if (!message) {
 		// Sende neue Servercontrol-Nachricht mit Buttons
 		let newMsg = await channel.send({
-			content: '**SERVERCONTROL**\nHier steuerst du den Server. Verwende die Buttons unten.',
-			components: [row]
+			content: '**SERVERCONTROL & MONITORING**\nHier steuerst du den Server und überwachst das System. Verwende die Buttons unten.',
+			components: [row, monitorRow]
 		});
 		config.serverControlMessageId = newMsg.id;
 		save(__dirname + '/config.json', config);
 	} else {
 		// Stelle sicher, dass die Buttons vorhanden sind
 		await message.edit({
-			content: '**SERVERCONTROL**\nHier steuerst du den Server. Verwende die Buttons unten.',
-			components: [row]
+			content: '**SERVERCONTROL & MONITORING**\nHier steuerst du den Server und überwachst das System. Verwende die Buttons unten.',
+			components: [row, monitorRow]
 		});
 	}
 }

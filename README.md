@@ -89,9 +89,35 @@ COMMANDS FOR SET ROLE
 * **reboot** - reboots the connected computer
 * **shutdown** - turns the connected computer off safely
 * **status** - tells if the connected computer is turned on or off
+* **temp** - shows current Raspberry Pi temperature
+* **temp history** - shows temperature history for the last 6 hours
+* **monitor** - displays comprehensive Pi system status (temperature, memory, uptime, CPU load)
 
 COMMANDS FOR ADMINISTRATOR
 * **force-shutdown** - forces the connected computer to turn off instantly
 * **setchannel** - will set bot command channel to current channel
 * **reload** - reload all external configuration files
 * **ping** - pings the provided ip adress
+
+## Monitoring Features
+The bot now includes comprehensive Raspberry Pi monitoring capabilities:
+
+### Temperature Monitoring
+- **Real-time temperature tracking** - Bot displays current Pi temperature in Discord status
+- **Automatic alerts** - Warns when temperature exceeds safe thresholds:
+  - 🟡 Warm: 60-70°C
+  - 🟠 Hot: 70-80°C  
+  - 🔥 Critical: 80°C+
+- **Temperature history** - Tracks and displays temperature trends over time
+- **Interactive buttons** - Quick access to temperature data via Discord buttons
+
+### System Monitoring
+- **Memory usage** - Shows RAM consumption and availability
+- **CPU load** - Displays current processor utilization
+- **Uptime tracking** - Shows how long the Pi has been running
+- **Automatic monitoring** - Checks system health every 5 minutes
+
+### Alert System
+- **Proactive notifications** - Automatically sends alerts to Discord when issues detected
+- **Temperature warnings** - Critical temperature alerts sent immediately to control channel
+- **Activity logging** - All monitoring events logged to activity.log file
