@@ -596,6 +596,9 @@ function afterposton(channel, attempts = 0, maxAttempts = 30, delayMs = 10000) {
 			save(__dirname + "/config.json", config);
 			updatePresence();
 			sendMessage(channel, "Der Post war erfolgreich. Der Server ist online. :white_check_mark:", globalsec);
+			
+			// Notify webserver of status change
+			webServer.notifyPCStatusChange('online');
 			return;
 		}
 	});
@@ -632,6 +635,9 @@ function aftershutoff(c) {
 			save(__dirname + "/config.json", config);
 			updatePresence();
 			sendMessage(c, `The shutdown was succesful. The server is offline. :octagonal_sign:`, globalsec);
+			
+			// Notify webserver of status change
+			webServer.notifyPCStatusChange('offline');
 			return;
 		}
 
@@ -676,6 +682,9 @@ function afterrebooton(c) {
 			save(__dirname + "/config.json", config);
 			updatePresence();
 			sendMessage(c, `The reboot was succesful. The server is online. :white_check_mark:`, globalsec);
+			
+			// Notify webserver of status change
+			webServer.notifyPCStatusChange('online');
 			return;
 		}
 	});
@@ -763,6 +772,9 @@ setInterval(() => {
 				save(__dirname + "/config.json", config);
 				updatePresence();
 				console.log("[AutoCheck] PC ist aus. Status korrigiert.");
+				
+				// Notify webserver of status change
+				webServer.notifyPCStatusChange('offline');
 			}
 		} else {
 			// PC ist an
@@ -772,6 +784,9 @@ setInterval(() => {
 				save(__dirname + "/config.json", config);
 				updatePresence();
 				console.log("[AutoCheck] PC ist an. Status korrigiert.");
+				
+				// Notify webserver of status change
+				webServer.notifyPCStatusChange('online');
 			}
 		}
 	});
