@@ -100,6 +100,69 @@ class WebServer {
         });
 
         // PC control endpoints
+        // GET endpoint for direct PC start via URL
+        this.app.get('/api/pc/start', (req, res) => {
+            const { exec } = require('child_process');
+            const scriptPath = path.join(__dirname, 'shellscripts', 'post.sh');
+            
+            console.log('PC start command initiated via GET request');
+            
+            // Execute the start script with 30-second timeout
+            const child = exec(`bash "${scriptPath}"`, { timeout: 30000 }, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('PC start script error:', error);
+                    
+                    // Handle timeout specifically
+                    if (error.killed && error.signal === 'SIGTERM') {
+                        return res.status(408).json({
+                            success: false,
+                            message: 'PC start command timed out after 30 seconds',
+                            timestamp: new Date().toISOString(),
+                            status: 'timeout'
+                        });
+                    }
+                    
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Failed to execute PC start command',
+                        error: error.message,
+                        timestamp: new Date().toISOString(),
+                        status: 'error'
+                    });
+                }
+                
+                console.log('PC start script completed successfully');
+                if (stdout) console.log('Start script stdout:', stdout);
+                if (stderr) console.log('Start script stderr:', stderr);
+                
+                res.json({
+                    success: true,
+                    message: 'PC start command executed successfully',
+                    timestamp: new Date().toISOString(),
+                    status: 'starting'
+                });
+                
+                // Broadcast immediate status update after start command
+                setTimeout(() => {
+                    this.broadcastPCStatus();
+                }, 2000);
+            });
+            
+            // Handle process errors
+            child.on('error', (error) => {
+                console.error('PC start process error:', error);
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        success: false,
+                        message: 'Failed to start PC control process',
+                        error: error.message,
+                        timestamp: new Date().toISOString(),
+                        status: 'error'
+                    });
+                }
+            });
+        });
+
         this.app.post('/api/pc/start', (req, res) => {
             const { exec } = require('child_process');
             const scriptPath = path.join(__dirname, 'shellscripts', 'post.sh');
