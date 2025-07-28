@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC wird gestartet...</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        h1 {
+            margin: 0 0 20px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .status {
+            font-size: 1.2em;
+            margin: 20px 0;
+            opacity: 0.9;
+        }
+        
+        .progress {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 8px;
+            margin: 30px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            height: 100%;
+            width: 0%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+        
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        
+        .countdown {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner" id="spinner"></div>
+        <h1>🖥️ PC Start</h1>
+        <div class="status" id="status">PC wird gestartet...</div>
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="countdown" id="countdown"></div>
+    </div>
+
+    <script>
+        let checkInterval;
+        let progressInterval;
+        let progress = 0;
+        let startTime = Date.now();
+        let countdownTimer;
+        
+        const statusEl = document.getElementById('status');
+        const progressBar = document.getElementById('progressBar');
+        const spinner = document.getElementById('spinner');
+        const countdownEl = document.getElementById('countdown');
+        
+        // Start the PC first
+        async function startPC() {
+            try {
+                const response = await fetch('/api/pc/start', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusEl.textContent = 'Start-Befehl gesendet! Warte auf PC...';
+                    startChecking();
+                } else {
+                    showError('Fehler beim Starten: ' + result.message);
+                }
+            } catch (error) {
+                showError('Verbindungsfehler: ' + error.message);
+            }
+        }
+        
+        // Check PC status periodically
+        async function checkPCStatus() {
+            try {
+                const response = await fetch('/api/pc/status');
+                const status = await response.json();
+                
+                if (status.pcStatus === 'ONLINE') {
+                    showSuccess();
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.log('Status check failed:', error);
+                return false;
+            }
+        }
+        
+        function startChecking() {
+            // Update progress bar
+            progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += 2;
+                    progressBar.style.width = progress + '%';
+                }
+            }, 1000);
+            
+            // Check PC status every 3 seconds
+            checkInterval = setInterval(async () => {
+                const isOnline = await checkPCStatus();
+                if (isOnline) {
+                    clearInterval(checkInterval);
+                    clearInterval(progressInterval);
+                }
+                
+                // Timeout after 2 minutes
+                if (Date.now() - startTime > 120000) {
+                    clearInterval(checkInterval);
+                    clearInterval(progressInterval);
+                    showError('Timeout: PC antwortet nicht nach 2 Minuten');
+                }
+            }, 3000);
+        }
+        
+        function showSuccess() {
+            progress = 100;
+            progressBar.style.width = '100%';
+            statusEl.innerHTML = '<span class="success">✅ PC ist online!</span>';
+            spinner.style.display = 'none';
+            
+            // Countdown and close
+            let countdown = 3;
+            countdownEl.textContent = `Fenster schließt sich in ${countdown} Sekunden...`;
+            
+            countdownTimer = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    countdownEl.textContent = `Fenster schließt sich in ${countdown} Sekunden...`;
+                } else {
+                    clearInterval(countdownTimer);
+                    window.close();
+                    // Fallback if window.close() doesn't work
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 500);
+                }
+            }, 1000);
+        }
+        
+        function showError(message) {
+            statusEl.innerHTML = `<span class="error">❌ ${message}</span>`;
+            spinner.style.display = 'none';
+            progressBar.style.background = '#f44336';
+            
+            clearInterval(checkInterval);
+            clearInterval(progressInterval);
+        }
+        
+        // Start the process when page loads
+        window.onload = () => {
+            startPC();
+        };
+        
+        // Cleanup on page unload
+        window.onbeforeunload = () => {
+            clearInterval(checkInterval);
+            clearInterval(progressInterval);
+            clearInterval(countdownTimer);
+        };
+    </script>
+</body>
+</html>

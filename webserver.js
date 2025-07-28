@@ -19,7 +19,7 @@ class WebServer {
     setupRoutes() {
         // Middleware for JSON parsing
         this.app.use(express.json());
-        
+
         // Serve static files
         this.app.use(express.static(path.join(__dirname, 'public')));
 
@@ -88,7 +88,7 @@ class WebServer {
         this.app.get('/api/pc/status', (req, res) => {
             const { exec } = require('child_process');
             const config = require('./config.json');
-            
+
             exec(`ping -c 1 ${config.serverip}`, (err) => {
                 res.json({
                     pcStatus: err ? 'OFFLINE' : 'ONLINE',
@@ -100,18 +100,23 @@ class WebServer {
         });
 
         // PC control endpoints
-        // GET endpoint for direct PC start via URL
+        // GET endpoint for direct PC start via URL - shows HTML page
+        this.app.get('/start-pc', (req, res) => {
+            res.sendFile(path.join(__dirname, 'public', 'pc-start.html'));
+        });
+
+        // API endpoint for direct PC start via URL
         this.app.get('/api/pc/start', (req, res) => {
             const { exec } = require('child_process');
             const scriptPath = path.join(__dirname, 'shellscripts', 'post.sh');
-            
+
             console.log('PC start command initiated via GET request');
-            
+
             // Execute the start script with 30-second timeout
             const child = exec(`bash "${scriptPath}"`, { timeout: 30000 }, (error, stdout, stderr) => {
                 if (error) {
                     console.error('PC start script error:', error);
-                    
+
                     // Handle timeout specifically
                     if (error.killed && error.signal === 'SIGTERM') {
                         return res.status(408).json({
@@ -121,7 +126,7 @@ class WebServer {
                             status: 'timeout'
                         });
                     }
-                    
+
                     return res.status(500).json({
                         success: false,
                         message: 'Failed to execute PC start command',
@@ -130,24 +135,24 @@ class WebServer {
                         status: 'error'
                     });
                 }
-                
+
                 console.log('PC start script completed successfully');
                 if (stdout) console.log('Start script stdout:', stdout);
                 if (stderr) console.log('Start script stderr:', stderr);
-                
+
                 res.json({
                     success: true,
                     message: 'PC start command executed successfully',
                     timestamp: new Date().toISOString(),
                     status: 'starting'
                 });
-                
+
                 // Broadcast immediate status update after start command
                 setTimeout(() => {
                     this.broadcastPCStatus();
                 }, 2000);
             });
-            
+
             // Handle process errors
             child.on('error', (error) => {
                 console.error('PC start process error:', error);
@@ -166,14 +171,14 @@ class WebServer {
         this.app.post('/api/pc/start', (req, res) => {
             const { exec } = require('child_process');
             const scriptPath = path.join(__dirname, 'shellscripts', 'post.sh');
-            
+
             console.log('PC start command initiated');
-            
+
             // Execute the start script with 30-second timeout
             const child = exec(`bash "${scriptPath}"`, { timeout: 30000 }, (error, stdout, stderr) => {
                 if (error) {
                     console.error('PC start script error:', error);
-                    
+
                     // Handle timeout specifically
                     if (error.killed && error.signal === 'SIGTERM') {
                         return res.status(408).json({
@@ -183,7 +188,7 @@ class WebServer {
                             status: 'timeout'
                         });
                     }
-                    
+
                     return res.status(500).json({
                         success: false,
                         message: 'Failed to execute PC start command',
@@ -192,24 +197,24 @@ class WebServer {
                         status: 'error'
                     });
                 }
-                
+
                 console.log('PC start script completed successfully');
                 if (stdout) console.log('Start script stdout:', stdout);
                 if (stderr) console.log('Start script stderr:', stderr);
-                
+
                 res.json({
                     success: true,
                     message: 'PC start command executed successfully',
                     timestamp: new Date().toISOString(),
                     status: 'starting'
                 });
-                
+
                 // Broadcast immediate status update after start command
                 setTimeout(() => {
                     this.broadcastPCStatus();
                 }, 2000);
             });
-            
+
             // Handle process errors
             child.on('error', (error) => {
                 console.error('PC start process error:', error);
@@ -228,14 +233,14 @@ class WebServer {
         this.app.post('/api/pc/shutdown', (req, res) => {
             const { exec } = require('child_process');
             const scriptPath = path.join(__dirname, 'shellscripts', 'shutdown.sh');
-            
+
             console.log('PC shutdown command initiated');
-            
+
             // Execute the shutdown script with 30-second timeout
             const child = exec(`bash "${scriptPath}"`, { timeout: 30000 }, (error, stdout, stderr) => {
                 if (error) {
                     console.error('PC shutdown script error:', error);
-                    
+
                     // Handle timeout specifically
                     if (error.killed && error.signal === 'SIGTERM') {
                         return res.status(408).json({
@@ -245,7 +250,7 @@ class WebServer {
                             status: 'timeout'
                         });
                     }
-                    
+
                     return res.status(500).json({
                         success: false,
                         message: 'Failed to execute PC shutdown command',
@@ -254,24 +259,24 @@ class WebServer {
                         status: 'error'
                     });
                 }
-                
+
                 console.log('PC shutdown script completed successfully');
                 if (stdout) console.log('Shutdown script stdout:', stdout);
                 if (stderr) console.log('Shutdown script stderr:', stderr);
-                
+
                 res.json({
                     success: true,
                     message: 'PC shutdown command executed successfully',
                     timestamp: new Date().toISOString(),
                     status: 'shutting_down'
                 });
-                
+
                 // Broadcast immediate status update after shutdown command
                 setTimeout(() => {
                     this.broadcastPCStatus();
                 }, 2000);
             });
-            
+
             // Handle process errors
             child.on('error', (error) => {
                 console.error('PC shutdown process error:', error);
@@ -326,7 +331,7 @@ class WebServer {
             };
 
             this.io.emit('temperatureUpdate', update);
-            
+
             // Also broadcast PC status update
             await this.broadcastPCStatus();
         } catch (error) {
@@ -338,7 +343,7 @@ class WebServer {
         try {
             const { exec } = require('child_process');
             const config = require('./config.json');
-            
+
             exec(`ping -c 1 ${config.serverip}`, (err) => {
                 const pcStatus = {
                     pcStatus: err ? 'OFFLINE' : 'ONLINE',
@@ -346,7 +351,7 @@ class WebServer {
                     timestamp: new Date().toISOString(),
                     botStatus: 'ONLINE'
                 };
-                
+
                 console.log(`[WebServer] Broadcasting PC status: ${pcStatus.pcStatus}`);
                 this.io.emit('pcStatusUpdate', pcStatus);
             });
@@ -360,7 +365,7 @@ class WebServer {
         return new Promise((resolve) => {
             const { exec } = require('child_process');
             const config = require('./config.json');
-            
+
             exec(`ping -c 1 ${config.serverip}`, (err) => {
                 resolve({
                     pcStatus: err ? 'OFFLINE' : 'ONLINE',
@@ -380,7 +385,7 @@ class WebServer {
             timestamp: new Date().toISOString(),
             botStatus: 'ONLINE'
         };
-        
+
         console.log(`[WebServer] PC status change notification: ${pcStatus.pcStatus}`);
         this.io.emit('pcStatusUpdate', pcStatus);
     }
