@@ -4,9 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Temperature Dashboard</title>
+    <title>Server Control Dashboard</title>
     <link rel="icon" type="image/png" href="/favicon.png">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         * {
@@ -17,7 +16,7 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            background: linear-gradient(135deg, #0a1929 0%, #0d2847 50%, #1e3a5f 100%);
             min-height: 100vh;
             padding: 20px;
             color: #ffffff;
@@ -32,37 +31,21 @@
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
+                radial-gradient(circle at 20% 50%, rgba(30, 136, 229, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(66, 165, 245, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(41, 182, 246, 0.1) 0%, transparent 50%);
             pointer-events: none;
             animation: aurora 20s ease-in-out infinite;
         }
 
         @keyframes aurora {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.8;
-            }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 40px;
-            box-shadow:
-                0 32px 64px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            position: relative;
             animation: slideUp 0.8s ease-out;
         }
 
@@ -71,7 +54,6 @@
                 opacity: 0;
                 transform: translateY(30px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -87,23 +69,18 @@
         .header h1 {
             font-size: 3.5em;
             font-weight: 800;
-            background: linear-gradient(135deg, #fff 0%, #a8edea 50%, #fed6e3 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #64b5f6 50%, #42a5f5 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin-bottom: 12px;
-            text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+            text-shadow: 0 0 30px rgba(66, 165, 245, 0.5);
             animation: glow 2s ease-in-out infinite alternate;
         }
 
         @keyframes glow {
-            from {
-                filter: brightness(1);
-            }
-
-            to {
-                filter: brightness(1.2);
-            }
+            from { filter: brightness(1); }
+            to { filter: brightness(1.2); }
         }
 
         .header p {
@@ -112,89 +89,50 @@
             font-weight: 300;
         }
 
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .status-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            padding: 32px 24px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
+        .card {
+            background: rgba(30, 136, 229, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(66, 165, 245, 0.2);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow:
+                0 32px 64px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
             position: relative;
             overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .status-card::before {
+        .card::before {
             content: '';
             position: absolute;
             top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-            transition: left 0.5s;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(66, 165, 245, 0.5), transparent);
         }
 
-        .status-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.2);
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.4);
+            border-color: rgba(66, 165, 245, 0.3);
         }
 
-        .status-card:hover::before {
-            left: 100%;
-        }
-
-        .status-card h3 {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 0.95em;
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .status-value {
-            font-size: 2.8em;
-            font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            margin-bottom: 8px;
-        }
-
-        .temp-critical {
-            border-left: 4px solid #ff6b6b;
-            background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 107, 107, 0.05));
-        }
-
-        .temp-hot {
-            border-left: 4px solid #ffa726;
-            background: linear-gradient(135deg, rgba(255, 167, 38, 0.1), rgba(255, 167, 38, 0.05));
-        }
-
-        .temp-warm {
-            border-left: 4px solid #ffee58;
-            background: linear-gradient(135deg, rgba(255, 238, 88, 0.1), rgba(255, 238, 88, 0.05));
-        }
-
-        .temp-normal {
-            border-left: 4px solid #66bb6a;
-            background: linear-gradient(135deg, rgba(102, 187, 106, 0.1), rgba(102, 187, 106, 0.05));
+        .card h2 {
+            font-size: 1.8em;
+            margin-bottom: 24px;
+            color: #64b5f6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .controls {
             display: flex;
             justify-content: center;
             gap: 16px;
-            margin-bottom: 24px;
             flex-wrap: wrap;
         }
 
@@ -231,58 +169,43 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #1e88e5, #1976d2);
             color: white;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-primary.active {
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-            box-shadow: 0 0 20px rgba(79, 172, 254, 0.6);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(30, 136, 229, 0.4);
         }
 
         .btn-success {
-            background: linear-gradient(135deg, #56ab2f, #a8e6cf);
+            background: linear-gradient(135deg, #43a047, #2e7d32);
             color: white;
         }
 
         .btn-success:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(86, 171, 47, 0.4);
+            box-shadow: 0 8px 25px rgba(67, 160, 71, 0.4);
         }
 
         .btn-danger {
-            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            background: linear-gradient(135deg, #e53935, #c62828);
             color: white;
         }
 
         .btn-danger:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(255, 65, 108, 0.4);
+            box-shadow: 0 8px 25px rgba(229, 57, 53, 0.4);
         }
 
         .btn-warning {
-            background: linear-gradient(135deg, #f093fb, #f5576c);
+            background: linear-gradient(135deg, #fb8c00, #ef6c00);
             color: white;
         }
 
         .btn-warning:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4);
+            box-shadow: 0 8px 25px rgba(251, 140, 0, 0.4);
         }
 
         .btn:disabled {
@@ -312,110 +235,34 @@
         }
 
         @keyframes spin {
-            0% {
-                transform: translate(-50%, -50%) rotate(0deg);
-            }
-
-            100% {
-                transform: translate(-50%, -50%) rotate(360deg);
-            }
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        .control-section {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .control-section h4 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 1.1em;
-            font-weight: 600;
-        }
-
-        .chart-container {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            padding: 32px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            margin-bottom: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .chart-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        }
-
-        .stats-container {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            padding: 32px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .stats-container h3 {
-            margin-bottom: 24px;
-            text-align: center;
-            font-size: 1.5em;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .stats-grid {
+        .ip-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
         }
 
-        .stat-item {
-            text-align: center;
-            padding: 24px;
-            background: rgba(255, 255, 255, 0.08);
+        .ip-item {
+            background: rgba(30, 136, 229, 0.1);
+            border: 1px solid rgba(66, 165, 245, 0.2);
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
             transition: all 0.3s ease;
             position: relative;
-            overflow: hidden;
+            cursor: pointer;
         }
 
-        .stat-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, #4facfe, #00f2fe);
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
+        .ip-item:hover {
+            background: rgba(30, 136, 229, 0.15);
+            border-color: rgba(66, 165, 245, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(30, 136, 229, 0.2);
         }
 
-        .stat-item:hover {
-            transform: translateY(-4px);
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        .stat-item:hover::before {
-            transform: scaleX(1);
-        }
-
-        .stat-label {
+        .ip-label {
             font-size: 0.9em;
             color: rgba(255, 255, 255, 0.6);
             margin-bottom: 8px;
@@ -424,89 +271,97 @@
             font-weight: 500;
         }
 
-        .stat-value {
-            font-size: 1.8em;
-            font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        .ip-address {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #64b5f6;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(66, 165, 245, 0.2);
+            border: 1px solid rgba(66, 165, 245, 0.3);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.85em;
+            color: #64b5f6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(66, 165, 245, 0.3);
+            border-color: rgba(66, 165, 245, 0.5);
+        }
+
+        .copy-btn.copied {
+            background: rgba(67, 160, 71, 0.3);
+            border-color: rgba(67, 160, 71, 0.5);
+            color: #81c784;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-online {
+            background: #43a047;
+            box-shadow: 0 0 10px rgba(67, 160, 71, 0.5);
+        }
+
+        .status-offline {
+            background: #e53935;
+            box-shadow: 0 0 10px rgba(229, 57, 53, 0.5);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
 
         .last-update {
             text-align: center;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.4);
             font-size: 0.9em;
             margin-top: 24px;
             font-weight: 300;
         }
 
-        /* Floating particles animation */
-        .container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image:
-                radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.15), transparent),
-                radial-gradient(1px 1px at 40px 70px, rgba(255, 255, 255, 0.1), transparent),
-                radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.1), transparent),
-                radial-gradient(1px 1px at 130px 80px, rgba(255, 255, 255, 0.15), transparent),
-                radial-gradient(1px 1px at 160px 30px, rgba(255, 255, 255, 0.1), transparent);
-            background-repeat: repeat;
-            background-size: 200px 100px;
-            animation: float 20s linear infinite;
-            pointer-events: none;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translateY(0px) translateX(0px);
-            }
-
-            33% {
-                transform: translateY(-10px) translateX(10px);
-            }
-
-            66% {
-                transform: translateY(5px) translateX(-5px);
-            }
-
-            100% {
-                transform: translateY(0px) translateX(0px);
-            }
-        }
-
         @media (max-width: 768px) {
             .container {
-                padding: 24px;
-                margin: 10px;
+                padding: 10px;
             }
 
             .header h1 {
                 font-size: 2.5em;
             }
 
-            .status-grid {
-                grid-template-columns: 1fr;
+            .card {
+                padding: 20px;
             }
 
             .controls {
                 flex-direction: column;
-                gap: 12px;
             }
 
             .btn {
                 width: 100%;
-                min-width: auto;
             }
 
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .ip-grid {
+                grid-template-columns: 1fr;
             }
         }
 
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -517,12 +372,12 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #1e88e5, #1976d2);
             border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            background: linear-gradient(135deg, #42a5f5, #1e88e5);
         }
     </style>
 </head>
@@ -530,70 +385,60 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌡️ Pi Temperature Dashboard</h1>
-            <p>Real-time monitoring and historical data</p>
+            <h1>🖥️ Server Control Dashboard</h1>
+            <p>Manage your servers and quick access to IP addresses</p>
         </div>
 
-        <div class="status-grid">
-            <div class="status-card" id="currentTemp">
-                <h3>Current Temperature</h3>
-                <div class="status-value">--°C</div>
-            </div>
-            <div class="status-card">
-                <h3>CPU Load</h3>
-                <div class="status-value" id="cpuLoad">--%</div>
-            </div>
-            <div class="status-card">
-                <h3>Memory Usage</h3>
-                <div class="status-value" id="memUsage">--%</div>
-            </div>
-            <div class="status-card">
-                <h3>Status</h3>
-                <div class="status-value" id="systemStatus">--</div>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button class="btn btn-primary active" onclick="loadData(1)">1 Hour</button>
-            <button class="btn btn-primary" onclick="loadData(6)">6 Hours</button>
-            <button class="btn btn-primary" onclick="loadData(24)">24 Hours</button>
-            <button class="btn btn-primary" onclick="loadData(168)">7 Days</button>
-            <button class="btn btn-primary" onclick="loadData(720)">30 Days</button>
-            <button class="btn btn-secondary" onclick="exportData()">Export CSV</button>
-        </div>
-
-        <div class="control-section">
-            <h4>🖥️ Server Control</h4>
+        <div class="card">
+            <h2>
+                <span class="status-indicator" id="serverStatusIndicator"></span>
+                Server Control
+            </h2>
             <div class="controls">
-                <button class="btn btn-secondary" onclick="getPCStatus()">🖥️ PC Status</button>
+                <button class="btn btn-primary" onclick="getPCStatus()">🖥️ PC Status</button>
                 <button id="startPCBtn" class="btn btn-success" onclick="startPC()">🚀 Start PC</button>
                 <button id="shutdownPCBtn" class="btn btn-danger" onclick="shutdownPC()">🔴 Shutdown PC</button>
                 <button class="btn btn-warning" onclick="restartServer()">🔄 Restart Bot</button>
             </div>
         </div>
 
-        <div class="chart-container">
-            <canvas id="temperatureChart"></canvas>
-        </div>
+        <div class="card">
+            <h2>📋 Quick IP Access</h2>
+            <div class="ip-grid">
+                <div class="ip-item" onclick="copyIP(this)">
+                    <button class="copy-btn">Copy</button>
+                    <div class="ip-label">Main Server</div>
+                    <div class="ip-address">192.168.1.100</div>
+                </div>
 
-        <div class="stats-container">
-            <h3>📊 Statistics</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-label">Min Temperature</div>
-                    <div class="stat-value" id="minTemp">--°C</div>
+                <div class="ip-item" onclick="copyIP(this)">
+                    <button class="copy-btn">Copy</button>
+                    <div class="ip-label">Database Server</div>
+                    <div class="ip-address">192.168.1.150</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">Max Temperature</div>
-                    <div class="stat-value" id="maxTemp">--°C</div>
+
+                <div class="ip-item" onclick="copyIP(this)">
+                    <button class="copy-btn">Copy</button>
+                    <div class="ip-label">Backup Server</div>
+                    <div class="ip-address">192.168.1.200</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">Average Temperature</div>
-                    <div class="stat-value" id="avgTemp">--°C</div>
+
+                <div class="ip-item" onclick="copyIP(this)">
+                    <button class="copy-btn">Copy</button>
+                    <div class="ip-label">Router Gateway</div>
+                    <div class="ip-address">192.168.1.1</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">Data Points</div>
-                    <div class="stat-value" id="dataCount">--</div>
+
+                <div class="ip-item" onclick="copyIP(this)">
+                    <button class="copy-btn">Copy</button>
+                    <div class="ip-label">NAS Storage</div>
+                    <div class="ip-address">192.168.1.250</div>
+                </div>
+
+                <div class="ip-item" onclick="copyIP(this)">
+                    <button class="copy-btn">Copy</button>
+                    <div class="ip-label">Development Server</div>
+                    <div class="ip-address">10.0.0.50</div>
                 </div>
             </div>
         </div>
@@ -605,200 +450,28 @@
 
     <script>
         const socket = io();
-        let chart;
-        let currentHours = 1;
 
-        // Initialize chart
-        function initChart() {
-            const ctx = document.getElementById('temperatureChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Temperature (°C)',
-                        data: [],
-                        borderColor: '#4facfe',
-                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#4facfe',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            labels: {
-                                color: '#ffffff',
-                                font: {
-                                    size: 14,
-                                    weight: '500'
-                                }
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#4facfe',
-                            borderWidth: 1
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            title: {
-                                display: true,
-                                text: 'Temperature (°C)',
-                                color: '#ffffff',
-                                font: {
-                                    size: 14,
-                                    weight: '500'
-                                }
-                            },
-                            ticks: {
-                                color: '#ffffff'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Time',
-                                color: '#ffffff',
-                                font: {
-                                    size: 14,
-                                    weight: '500'
-                                }
-                            },
-                            ticks: {
-                                color: '#ffffff'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
-                    }
-                }
+        // Copy IP to clipboard
+        function copyIP(element) {
+            const ipAddress = element.querySelector('.ip-address').textContent;
+            const copyBtn = element.querySelector('.copy-btn');
+            
+            navigator.clipboard.writeText(ipAddress).then(() => {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✓ Copied';
+                copyBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy IP address');
             });
         }
 
-        // Load temperature data
-        async function loadData(hours) {
-            currentHours = hours;
-
-            // Update active button
-            document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-
-            try {
-                const response = await fetch(`/api/temperature/${hours}`);
-                const data = await response.json();
-
-                const labels = data.map(item => {
-                    const date = new Date(item.timestamp);
-                    return hours <= 24 ?
-                        date.toLocaleTimeString() :
-                        date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                });
-
-                const temperatures = data.map(item => item.temperature);
-
-                chart.data.labels = labels;
-                chart.data.datasets[0].data = temperatures;
-                chart.update();
-
-                // Load stats
-                loadStats(hours);
-
-            } catch (error) {
-                console.error('Error loading data:', error);
-            }
-        }
-
-        // Load statistics
-        async function loadStats(hours) {
-            try {
-                const response = await fetch(`/api/stats/${hours}`);
-                const stats = await response.json();
-
-                document.getElementById('minTemp').textContent = stats.min_temp ? stats.min_temp.toFixed(1) + '°C' : '--°C';
-                document.getElementById('maxTemp').textContent = stats.max_temp ? stats.max_temp.toFixed(1) + '°C' : '--°C';
-                document.getElementById('avgTemp').textContent = stats.avg_temp ? stats.avg_temp.toFixed(1) + '°C' : '--°C';
-                document.getElementById('dataCount').textContent = stats.count || '--';
-
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
-        }
-
-        // Load current data
-        async function loadCurrentData() {
-            try {
-                const response = await fetch('/api/current');
-                const data = await response.json();
-
-                updateCurrentDisplay(data);
-
-            } catch (error) {
-                console.error('Error loading current data:', error);
-            }
-        }
-
-        // Update current display
-        function updateCurrentDisplay(data) {
-            const tempCard = document.getElementById('currentTemp');
-            const tempValue = tempCard.querySelector('.status-value');
-
-            if (data.temperature !== null) {
-                tempValue.textContent = data.temperature.toFixed(1) + '°C ' + data.emoji;
-
-                // Update card color based on temperature
-                tempCard.className = 'status-card';
-                if (data.temperature >= 80) tempCard.classList.add('temp-critical');
-                else if (data.temperature >= 70) tempCard.classList.add('temp-hot');
-                else if (data.temperature >= 60) tempCard.classList.add('temp-warm');
-                else tempCard.classList.add('temp-normal');
-            } else {
-                tempValue.textContent = 'N/A';
-            }
-
-            // Update system stats
-            if (data.systemStats) {
-                document.getElementById('cpuLoad').textContent =
-                    data.systemStats.cpuLoad !== undefined ? data.systemStats.cpuLoad + '%' : '--%';
-                document.getElementById('memUsage').textContent =
-                    data.systemStats.memUsage !== undefined ? data.systemStats.memUsage + '%' : '--%';
-            }
-
-            document.getElementById('systemStatus').textContent = data.status || '--';
-            document.getElementById('lastUpdate').textContent =
-                'Last updated: ' + new Date(data.timestamp).toLocaleString();
-        }
-
-        // Export data
-        function exportData() {
-            window.open(`/api/export/${currentHours}`, '_blank');
-        }
-
-        // PC status function (same logic as Discord bot)
+        // PC status function
         async function getPCStatus() {
             try {
                 const response = await fetch('/api/pc/status');
@@ -808,7 +481,6 @@
                 }
 
                 const status = await response.json();
-
                 const statusIcon = status.pcStatus === 'ONLINE' ? '✅' : '❌';
 
                 alert(`🖥️ PC Status Check:\n\n` +
@@ -817,29 +489,32 @@
                     `🤖 Bot Status: ${status.botStatus}\n` +
                     `⏰ Checked: ${new Date(status.timestamp).toLocaleString()}`);
 
+                updateServerIndicator(status.pcStatus === 'ONLINE');
+
             } catch (error) {
                 alert('❌ Error checking PC status: ' + error.message);
+                updateServerIndicator(false);
             }
+        }
+
+        // Update server status indicator
+        function updateServerIndicator(isOnline) {
+            const indicator = document.getElementById('serverStatusIndicator');
+            indicator.className = 'status-indicator ' + (isOnline ? 'status-online' : 'status-offline');
         }
 
         // PC Control Functions
         async function startPC() {
             const startBtn = document.getElementById('startPCBtn');
 
-            // Prevent multiple clicks
-            if (startBtn.disabled) {
-                return;
-            }
+            if (startBtn.disabled) return;
 
-            // Set loading state with immediate feedback
             updateButtonState(startBtn, 'loading', '⏳ Starting...', true);
 
             try {
                 const response = await fetch('/api/pc/start', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 if (!response.ok) {
@@ -849,102 +524,58 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Update to starting state as per requirement 2.4
                     updateButtonState(startBtn, 'starting', '⏳ Starting...', true);
 
-                    // Set up timeout for starting operation (2 minutes)
                     const startTimeout = setTimeout(() => {
-                        // Check if still in starting state
                         if (startBtn.classList.contains('btn-loading')) {
                             updateButtonState(startBtn, 'error', '⏰ Start Timeout', false);
-                            setTimeout(() => {
-                                updatePCButtonStates();
-                            }, 3000);
+                            setTimeout(() => updatePCButtonStates(), 3000);
                         }
-                    }, 120000); // 2 minutes timeout
+                    }, 120000);
 
-                    // Store timeout ID for potential cleanup
                     startBtn.dataset.timeoutId = startTimeout;
 
-                    // Check PC status after delays to see if it came online
-                    setTimeout(async () => {
-                        await updatePCButtonStates();
-                        // Clear timeout if PC came online
-                        if (!startBtn.classList.contains('btn-loading')) {
-                            clearTimeout(startTimeout);
-                        }
-                    }, 5000);
-
-                    // Additional check after longer delay in case PC takes time to boot
-                    setTimeout(async () => {
-                        await updatePCButtonStates();
-                        // Clear timeout if PC came online
-                        if (!startBtn.classList.contains('btn-loading')) {
-                            clearTimeout(startTimeout);
-                        }
-                    }, 15000);
-
-                    // Final check before timeout
-                    setTimeout(async () => {
-                        await updatePCButtonStates();
-                        // Clear timeout if PC came online
-                        if (!startBtn.classList.contains('btn-loading')) {
-                            clearTimeout(startTimeout);
-                        }
-                    }, 60000);
+                    [5000, 15000, 60000].forEach(delay => {
+                        setTimeout(async () => {
+                            await updatePCButtonStates();
+                            if (!startBtn.classList.contains('btn-loading')) {
+                                clearTimeout(startTimeout);
+                            }
+                        }, delay);
+                    });
 
                 } else {
-                    // Show error state with specific message if available
                     const errorMsg = result.message || 'Start Failed';
                     updateButtonState(startBtn, 'error', `❌ ${errorMsg}`, false);
-
-                    // Reset to default state after showing error
-                    setTimeout(() => {
-                        updatePCButtonStates();
-                    }, 3000);
+                    setTimeout(() => updatePCButtonStates(), 3000);
                 }
 
             } catch (error) {
                 console.error('Error starting PC:', error);
-
-                // Provide specific error feedback to user
                 let errorMsg = 'Start Failed';
-                if (error.message.includes('Failed to fetch')) {
-                    errorMsg = 'Network Error';
-                } else if (error.message.includes('timeout')) {
-                    errorMsg = 'Request Timeout';
-                }
+                if (error.message.includes('Failed to fetch')) errorMsg = 'Network Error';
+                else if (error.message.includes('timeout')) errorMsg = 'Request Timeout';
 
                 updateButtonState(startBtn, 'error', `❌ ${errorMsg}`, false);
-
-                // Reset to default state after showing error
-                setTimeout(() => {
-                    updatePCButtonStates();
-                }, 3000);
+                setTimeout(() => updatePCButtonStates(), 3000);
             }
         }
 
         async function shutdownPC() {
             const shutdownBtn = document.getElementById('shutdownPCBtn');
 
-            // Prevent multiple clicks
-            if (shutdownBtn.disabled) {
-                return;
-            }
+            if (shutdownBtn.disabled) return;
 
             if (!confirm('🔴 Are you sure you want to shutdown the PC?\n\nThis will power off the PC completely.')) {
                 return;
             }
 
-            // Set loading state with immediate feedback
             updateButtonState(shutdownBtn, 'loading', '⏳ Shutting Down...', true);
 
             try {
                 const response = await fetch('/api/pc/shutdown', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 if (!response.ok) {
@@ -954,78 +585,40 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Update to shutting down state
                     updateButtonState(shutdownBtn, 'shutting-down', '⏳ Shutting Down...', true);
 
-                    // Set up timeout for shutdown operation (90 seconds)
                     const shutdownTimeout = setTimeout(() => {
-                        // Check if still in shutting down state
                         if (shutdownBtn.classList.contains('btn-loading')) {
                             updateButtonState(shutdownBtn, 'error', '⏰ Shutdown Timeout', false);
-                            setTimeout(() => {
-                                updatePCButtonStates();
-                            }, 3000);
+                            setTimeout(() => updatePCButtonStates(), 3000);
                         }
-                    }, 90000); // 90 seconds timeout
+                    }, 90000);
 
-                    // Store timeout ID for potential cleanup
                     shutdownBtn.dataset.timeoutId = shutdownTimeout;
 
-                    // Check PC status after delays to see if it went offline
-                    setTimeout(async () => {
-                        await updatePCButtonStates();
-                        // Clear timeout if PC went offline
-                        if (!shutdownBtn.classList.contains('btn-loading')) {
-                            clearTimeout(shutdownTimeout);
-                        }
-                    }, 10000);
-
-                    // Additional check after longer delay in case shutdown takes time
-                    setTimeout(async () => {
-                        await updatePCButtonStates();
-                        // Clear timeout if PC went offline
-                        if (!shutdownBtn.classList.contains('btn-loading')) {
-                            clearTimeout(shutdownTimeout);
-                        }
-                    }, 20000);
-
-                    // Final check before timeout
-                    setTimeout(async () => {
-                        await updatePCButtonStates();
-                        // Clear timeout if PC went offline
-                        if (!shutdownBtn.classList.contains('btn-loading')) {
-                            clearTimeout(shutdownTimeout);
-                        }
-                    }, 60000);
+                    [10000, 20000, 60000].forEach(delay => {
+                        setTimeout(async () => {
+                            await updatePCButtonStates();
+                            if (!shutdownBtn.classList.contains('btn-loading')) {
+                                clearTimeout(shutdownTimeout);
+                            }
+                        }, delay);
+                    });
 
                 } else {
-                    // Show error state with specific message if available
                     const errorMsg = result.message || 'Shutdown Failed';
                     updateButtonState(shutdownBtn, 'error', `❌ ${errorMsg}`, false);
-
-                    // Reset to default state after showing error
-                    setTimeout(() => {
-                        updatePCButtonStates();
-                    }, 3000);
+                    setTimeout(() => updatePCButtonStates(), 3000);
                 }
 
             } catch (error) {
                 console.error('Error shutting down PC:', error);
-
-                // Provide specific error feedback to user
                 let errorMsg = 'Shutdown Failed';
-                if (error.message.includes('Failed to fetch')) {
-                    errorMsg = 'Network Error';
-                } else if (error.message.includes('timeout')) {
-                    errorMsg = 'Request Timeout';
-                }
+                if (error.message.includes('Failed to fetch')) errorMsg = 'Network Error';
+                else if (error.message.includes('timeout')) errorMsg = 'Request Timeout';
 
                 updateButtonState(shutdownBtn, 'error', `❌ ${errorMsg}`, false);
-
-                // Reset to default state after showing error
-                setTimeout(() => {
-                    updatePCButtonStates();
-                }, 3000);
+                setTimeout(() => updatePCButtonStates(), 3000);
             }
         }
 
@@ -1034,8 +627,7 @@
             button.textContent = text;
             button.disabled = disabled;
 
-            // Remove all state classes
-            button.classList.remove('btn-loading', 'btn-success', 'btn-danger', 'btn-warning', 'btn-secondary');
+            button.classList.remove('btn-loading', 'btn-success', 'btn-danger', 'btn-warning', 'btn-primary');
 
             switch (state) {
                 case 'loading':
@@ -1046,14 +638,7 @@
                 case 'error':
                     button.classList.add('btn-danger');
                     break;
-                case 'online':
-                    button.classList.add('btn-secondary');
-                    break;
-                case 'offline':
-                    button.classList.add('btn-secondary');
-                    break;
                 default:
-                    // Default states
                     if (button.id === 'startPCBtn') {
                         button.classList.add('btn-success');
                     } else if (button.id === 'shutdownPCBtn') {
@@ -1062,14 +647,11 @@
             }
         }
 
-        // Update PC button states based on current PC status
+        // Update PC button states
         async function updatePCButtonStates() {
             try {
                 const response = await fetch('/api/pc/status');
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
                 const status = await response.json();
                 const startBtn = document.getElementById('startPCBtn');
@@ -1078,18 +660,23 @@
                 if (status.pcStatus === 'ONLINE') {
                     updateButtonState(startBtn, 'online', '✅ PC Online', true);
                     updateButtonState(shutdownBtn, 'default', '🔴 Shutdown PC', false);
+                    updateServerIndicator(true);
                 } else {
                     updateButtonState(startBtn, 'default', '🚀 Start PC', false);
                     updateButtonState(shutdownBtn, 'offline', '⚫ PC Offline', true);
+                    updateServerIndicator(false);
                 }
 
+                document.getElementById('lastUpdate').textContent = 
+                    'Last updated: ' + new Date().toLocaleString();
+
             } catch (error) {
-                console.error('Error checking PC status for button states:', error);
-                // Reset to default states on error
+                console.error('Error checking PC status:', error);
                 const startBtn = document.getElementById('startPCBtn');
                 const shutdownBtn = document.getElementById('shutdownPCBtn');
                 updateButtonState(startBtn, 'default', '🚀 Start PC', false);
                 updateButtonState(shutdownBtn, 'default', '🔴 Shutdown PC', false);
+                updateServerIndicator(false);
             }
         }
 
@@ -1099,13 +686,11 @@
             }
 
             try {
-                const response = await fetch('/api/server/restart', {
-                    method: 'POST'
-                });
+                const response = await fetch('/api/server/restart', { method: 'POST' });
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Bot restart initiated!\n\nThe bot will restart in a few seconds. If you\'re using systemd, it will automatically restart.');
+                    alert('✅ Bot restart initiated!\n\nThe bot will restart in a few seconds.');
                 } else {
                     alert('❌ Error restarting server: ' + result.message);
                 }
@@ -1115,40 +700,26 @@
         }
 
         // Socket events
-        socket.on('temperatureUpdate', (data) => {
-            updateCurrentDisplay(data);
-        });
-
-        // Listen for PC status updates and automatically update button states
         socket.on('pcStatusUpdate', (data) => {
             console.log('PC status update received:', data);
-            updatePCButtonStatesFromStatus(data);
-        });
-
-        // Update PC button states directly from status data (for real-time updates)
-        function updatePCButtonStatesFromStatus(status) {
             const startBtn = document.getElementById('startPCBtn');
             const shutdownBtn = document.getElementById('shutdownPCBtn');
 
-            if (status.pcStatus === 'ONLINE') {
+            if (data.pcStatus === 'ONLINE') {
                 updateButtonState(startBtn, 'online', '✅ PC Online', true);
                 updateButtonState(shutdownBtn, 'default', '🔴 Shutdown PC', false);
+                updateServerIndicator(true);
             } else {
                 updateButtonState(startBtn, 'default', '🚀 Start PC', false);
                 updateButtonState(shutdownBtn, 'offline', '⚫ PC Offline', true);
+                updateServerIndicator(false);
             }
-        }
+        });
 
-        // Initialize everything when page loads
+        // Initialize
         document.addEventListener('DOMContentLoaded', function () {
-            initChart();
-            loadData(1); // Load 1 hour data by default
-            loadCurrentData();
-            updatePCButtonStates(); // Initialize PC button states
-
-            // Set up periodic updates
-            setInterval(loadCurrentData, 30000); // Update current data every 30 seconds
-            setInterval(() => loadData(currentHours), 60000); // Refresh chart data every minute
+            updatePCButtonStates();
+            setInterval(updatePCButtonStates, 30000); // Update every 30 seconds
         });
     </script>
 </body>
