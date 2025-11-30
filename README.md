@@ -1,123 +1,237 @@
-# dc-rpi-remote-pc-start
-bridge between discord and a raspberry pi to hardware post a connected computer
+# PC Starter (Raspberry Pi PC Power Controller)
+
+Small Node.js service that runs on a Raspberry Pi and lets you **start and shut down a PC over the network** using simple HTTP endpoints and a web dashboard.
+
+No Discord, no temperature monitoring, no database – just PC power control.
+
+---
+
+## Features
+
+- **Start PC** via a shell script (`shellscripts/post.sh`).
+- **Shutdown PC** via a shell script (`shellscripts/shutdown.sh`).
+- **PC status check** using `ping` against the configured IP.
+- **Web dashboard** at `/dashboard` with:
+  - Start / Shutdown buttons
+  - Status indicator (online/offline)
+  - Quick IP copy shortcuts
+- **Direct start page** at `/start-pc` for a one-click "start PC" view.
+- **JSON API** for integration with other tools (Home Assistant, shortcuts, etc.).
+
+---
 
 ## Requirements
-You need NodeJS and NPM installed. On newer Raspbian versions you will need to install WiringPi manually.
 
-# Hardware Installation
-1 coming soon...
+- Node.js and npm installed on the Raspberry Pi.
+- A POSIX shell environment on the Pi (for running the `post.sh` and `shutdown.sh` scripts).
+- The `ping` command available (used to detect whether the PC is online).
 
-# Software Installation
-1 Start by cloning the repository and installing the packages
-```
+---
+
+## Installation
+
+1. Clone the repository and install dependencies:
+
+```bash
 git clone https://github.com/King007t/dc-rpi-remote-pc-start.git
 cd dc-rpi-remote-pc-start
 npm install
 ```
-2 to be able to connect to a Discord server you will need a bot token.
-[Here's a guide](#0) on how to get a token. Store your token as a string called `token` inside `config.json`. Fill out the rest of your config file too. 
 
-Your config file (config.json) will look something like this:
-```
+2. Adjust the shell scripts in `shellscripts/` to fit your hardware setup
+   (e.g. GPIO pins, wake-on-LAN, relays, etc.).
+
+---
+
+## Configuration
+
+Configuration is done via `config.json` in the project root.
+
+Minimal example:
+
+```json
 {
-	"prefix":"!",			//prefix for recognition of bot commands
-	"token":"random_characters",	//discord bot token to connect to
-	"globalsec":"5",		//seconds a message from the bot will be displayed
-	"status":"off",			//current status of the server "off" or "on"
-	"channel":"",			//can be left blank (can be added by sending the **setchannel** command into the desired channel)
-	"serverip":"0.0.0.0",		//local ip adress of the computer to be controlled
-	"required_role": {
-		"use":true,		//true or false defines if a role is required to use the bot
-		"name":"ServerManager"	//name of the required role
-	}
+  "status": "off",
+  "serverip": "192.168.0.13"
 }
 ```
 
-3 Start the bot by running the following command within the dc-rpi-remote-pc-start directory
-```
-node index.js
-```
-**OR** Make the bot run in the background and on system startup by creating a systemd service
+- `status`  
+  Initial PC status. This will be auto-corrected over time using `ping`.
+- `serverip`  
+  IP address of the PC that should be controlled.
 
-Step 1: Create a new systemd service for dc-rpi-remote-pc-start
-```
-sudo nano /lib/systemd/system/dc-rpi-remote-pc-start.service 
+> Note: There are no secrets or tokens anymore. If you expose this outside your LAN,
+> make sure you put it behind proper authentication / HTTPS yourself.
+
+---
+
+## Running the service
+
+Start the service in the foreground:
+
+```bash
+npm start
 ```
 
-Step 2: Paste the following content and replace User and Group with your own username
+By default this will:
+
+- Start an HTTP server on port `3001`.
+- Serve the web dashboard at:
+  - `http://localhost:3001/dashboard` on the Pi itself.
+  - `http://<pi-ip>:3001/dashboard` from other devices on the network.
+- Periodically (every 2 hours) ping the configured `serverip` and auto-correct `status`
+  in `config.json`.
+
+To make it always-on, see the systemd example below.
+
+---
+
+## HTTP API
+
+All endpoints are served by `webserver.js`.
+
+### `GET /api/pc/status`
+
+Check whether the configured PC is online.
+
+**Response (JSON):**
+
+```json
+{
+  "pcStatus": "ONLINE" | "OFFLINE",
+  "pcIP": "192.168.0.13",
+  "timestamp": "2024-01-01T12:34:56.789Z",
+  "botStatus": "ONLINE"
+}
 ```
+
+### `POST /api/pc/start`
+
+Start the PC via `shellscripts/post.sh`.
+
+- Executes the script with a 30-second timeout.
+- Returns a JSON payload indicating whether the command was dispatched.
+
+**Response on success (200):**
+
+```json
+{
+  "success": true,
+  "message": "PC start command executed successfully",
+  "timestamp": "2024-01-01T12:34:56.789Z",
+  "status": "starting"
+}
+```
+
+### `GET /api/pc/start`
+
+Same as `POST /api/pc/start`, but triggerable via a simple GET
+(e.g. browser bookmark, webhook that cannot send POST).
+
+### `POST /api/pc/shutdown`
+
+Shutdown the PC via `shellscripts/shutdown.sh`.
+
+**Response on success (200):**
+
+```json
+{
+  "success": true,
+  "message": "PC shutdown command executed successfully",
+  "timestamp": "2024-01-01T12:34:56.789Z",
+  "status": "shutting_down"
+}
+```
+
+### `POST /api/server/restart`
+
+Ask the Node process to exit so an external supervisor (e.g. systemd)
+can restart it.
+
+This returns a success JSON and then calls `process.exit(0)` after a short delay.
+
+---
+
+## Web UI
+
+### Dashboard (`/dashboard`)
+
+- Buttons:
+  - **PC Status** → calls `/api/pc/status` and shows a popup with details.
+  - **Start PC** → calls `/api/pc/start`.
+  - **Shutdown PC** → calls `/api/pc/shutdown`.
+  - **Restart Server** → calls `/api/server/restart`.
+- Status indicator circle (green/red) shows if the PC is online.
+- Quick IP tiles for copying common IPs to the clipboard.
+- Uses Socket.IO to receive live `pcStatusUpdate` events and update the UI
+  without page reload.
+
+### Direct start page (`/start-pc`)
+
+- Simple page that:
+  - Immediately calls `/api/pc/start` on load.
+  - Shows a spinner, a progress bar, and checks `/api/pc/status` periodically.
+  - Shows success or timeout after a while.
+
+You can bookmark this URL or trigger it from other tools for a one-click "start PC".
+
+---
+
+## Running as a systemd service (optional)
+
+Example service file to run on boot (on a typical Raspberry Pi OS):
+
+```ini
 [Unit]
-Description=dc-rpi-remote-pc-start
+Description=pc-starter (Raspberry Pi PC power controller)
+After=network.target
+
 [Service]
 Type=simple
 Restart=on-failure
 RestartSec=5
-StartLimitInterval=60s
-StartLimitBurst=3
-User=[username]
-Group=[username]
-Environment=TERM=xterm
-ExecStart=node /home/[username]/dc-rpi-remote-pc-start/
-ExecReload=/bin/kill -s HUP $MAINPID
-ExecStop=/bin/kill -s TERM $MAINPID
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/dc-rpi-remote-pc-start
+ExecStart=/usr/bin/node /home/pi/dc-rpi-remote-pc-start/server.js
+
 [Install]
 WantedBy=multi-user.target
 ```
 
-Step 3: Press Ctrl + x,y (to save), Enter (to save with the same name)
+Steps:
 
-Step 4: Enable the new dc-rpi-remote-pc-start service (optional but will make the bot start on boot)
-```
-sudo systemctl enable dc-rpi-remote-pc-start.service
-```
+```bash
+sudo nano /lib/systemd/system/pc-starter.service
+# paste the content above, then save
 
-Step 5: Reload the Systemd Daemon (Do this every time you modify a server file)
-```
 sudo systemctl daemon-reload
+sudo systemctl enable pc-starter.service
+sudo systemctl start pc-starter.service
 ```
 
-Step 6: start the dc-rpi-remote-pc-start service. You can use start, stop, restart or status. You don't have to run it manually again if it's enabled to start on boot (Step 4).
+---
+
+## Security notes
+
+- This service does **not** implement authentication or TLS on its own.
+- Intended usage is inside a trusted LAN.
+- If you want to expose it over the internet, put it behind a reverse proxy
+  (NGINX, Caddy, Traefik, etc.) with HTTPS and authentication.
+
+---
+
+## Development & tests
+
+- Code entrypoint: `server.js`.
+- HTTP server & Socket.IO: `webserver.js`.
+- PC control scripts: `shellscripts/` (you own these; adjust to your hardware).
+- Dashboard HTML/CSS/JS: `public/dashboard.html` and `public/pc-start.html`.
+- API & frontend tests (Vitest): `test/` directory.
+
+To run tests (after adding `vitest` as a dev dependency if needed):
+
+```bash
+npm test
 ```
-sudo systemctl start dc-rpi-remote-pc-start.service
-```
-
-## Available commands
-_NOTE! The default prefix is !. The prefix must be used before the command for it to work._
-
-COMMANDS FOR SET ROLE
-* **post** - turns the connected computer on
-* **reboot** - reboots the connected computer
-* **shutdown** - turns the connected computer off safely
-* **status** - tells if the connected computer is turned on or off
-* **temp** - shows current Raspberry Pi temperature
-* **temp history** - shows temperature history for the last 6 hours
-* **monitor** - displays comprehensive Pi system status (temperature, memory, uptime, CPU load)
-
-COMMANDS FOR ADMINISTRATOR
-* **force-shutdown** - forces the connected computer to turn off instantly
-* **setchannel** - will set bot command channel to current channel
-* **reload** - reload all external configuration files
-* **ping** - pings the provided ip adress
-
-## Monitoring Features
-The bot now includes comprehensive Raspberry Pi monitoring capabilities:
-
-### Temperature Monitoring
-- **Real-time temperature tracking** - Bot displays current Pi temperature in Discord status
-- **Automatic alerts** - Warns when temperature exceeds safe thresholds:
-  - 🟡 Warm: 60-70°C
-  - 🟠 Hot: 70-80°C  
-  - 🔥 Critical: 80°C+
-- **Temperature history** - Tracks and displays temperature trends over time
-- **Interactive buttons** - Quick access to temperature data via Discord buttons
-
-### System Monitoring
-- **Memory usage** - Shows RAM consumption and availability
-- **CPU load** - Displays current processor utilization
-- **Uptime tracking** - Shows how long the Pi has been running
-- **Automatic monitoring** - Checks system health every 5 minutes
-
-### Alert System
-- **Proactive notifications** - Automatically sends alerts to Discord when issues detected
-- **Temperature warnings** - Critical temperature alerts sent immediately to control channel
-- **Activity logging** - All monitoring events logged to activity.log file

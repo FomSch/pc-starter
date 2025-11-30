@@ -16,21 +16,12 @@ describe('PC Control API Endpoints', () => {
     // Reset all mocks
     vi.clearAllMocks();
     
-    // Create mock database and monitor
-    mockDatabase = {
-      getTemperatureData: vi.fn(),
-      getTemperatureStats: vi.fn(),
-      exportToCSV: vi.fn()
-    };
+    // Legacy mocks for database/monitor are no longer needed but kept for compatibility
+    mockDatabase = {};
+    mockMonitor = {};
     
-    mockMonitor = {
-      getCPUTemp: vi.fn(),
-      getTempStatus: vi.fn(),
-      getSystemStats: vi.fn()
-    };
-    
-    // Create WebServer instance
-    webServer = new WebServer(mockDatabase, mockMonitor);
+    // Create WebServer instance (no external dependencies required now)
+    webServer = new WebServer();
     app = webServer.app;
   });
 

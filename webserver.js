@@ -4,12 +4,10 @@ const socketIo = require('socket.io');
 const path = require('path');
 
 class WebServer {
-    constructor(database, monitor) {
+    constructor() {
         this.app = express();
         this.server = http.createServer(this.app);
         this.io = socketIo(this.server);
-        this.database = database;
-        this.monitor = monitor;
         this.port = 3001;
 
         this.setupRoutes();
@@ -22,58 +20,6 @@ class WebServer {
 
         // Serve static files
         this.app.use(express.static(path.join(__dirname, 'public')));
-
-        // API Routes
-        this.app.get('/api/temperature/:hours?', async (req, res) => {
-            try {
-                const hours = parseInt(req.params.hours) || 24;
-                const data = await this.database.getTemperatureData(hours);
-                res.json(data);
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
-        this.app.get('/api/stats/:hours?', async (req, res) => {
-            try {
-                const hours = parseInt(req.params.hours) || 24;
-                const stats = await this.database.getTemperatureStats(hours);
-                res.json(stats);
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
-        this.app.get('/api/current', async (req, res) => {
-            try {
-                const temp = await this.monitor.getCPUTemp();
-                const tempStatus = this.monitor.getTempStatus(temp);
-                const systemStats = await this.monitor.getSystemStats();
-
-                res.json({
-                    temperature: temp,
-                    status: tempStatus.status,
-                    emoji: tempStatus.emoji,
-                    systemStats: systemStats,
-                    timestamp: new Date().toISOString()
-                });
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
-        this.app.get('/api/export/:hours?', async (req, res) => {
-            try {
-                const hours = parseInt(req.params.hours) || 24;
-                const csv = await this.database.exportToCSV(hours);
-
-                res.setHeader('Content-Type', 'text/csv');
-                res.setHeader('Content-Disposition', `attachment; filename="temperature_data_${hours}h.csv"`);
-                res.send(csv);
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
 
         // Main dashboard route
         this.app.get('/', (req, res) => {
@@ -316,29 +262,6 @@ class WebServer {
         });
     }
 
-    async broadcastUpdate() {
-        try {
-            const temp = await this.monitor.getCPUTemp();
-            const tempStatus = this.monitor.getTempStatus(temp);
-            const systemStats = await this.monitor.getSystemStats();
-
-            const update = {
-                temperature: temp,
-                status: tempStatus.status,
-                emoji: tempStatus.emoji,
-                systemStats: systemStats,
-                timestamp: new Date().toISOString()
-            };
-
-            this.io.emit('temperatureUpdate', update);
-
-            // Also broadcast PC status update
-            await this.broadcastPCStatus();
-        } catch (error) {
-            console.error('Error broadcasting update:', error.message);
-        }
-    }
-
     async broadcastPCStatus() {
         try {
             const { exec } = require('child_process');
@@ -360,7 +283,7 @@ class WebServer {
         }
     }
 
-    // Method to get current PC status synchronously for API calls
+    // Method to get current PC status synchronously for API calls (kept for potential future use)
     getCurrentPCStatus() {
         return new Promise((resolve) => {
             const { exec } = require('child_process');
@@ -376,7 +299,6 @@ class WebServer {
             });
         });
     }
-
     // Method to be called from index.js when PC status changes
     notifyPCStatusChange(status) {
         const pcStatus = {
@@ -413,12 +335,7 @@ class WebServer {
             console.log(`🌍 Remote access URL: http://${ipAddress}:${this.port}/dashboard`);
         });
 
-        // Broadcast updates every 30 seconds
-        setInterval(() => {
-            this.broadcastUpdate();
-        }, 30000);
-
-        // Additional PC status checking every 2 minutes for more responsive button updates
+        // PC status checking every 2 minutes for more responsive button updates
         setInterval(() => {
             this.broadcastPCStatus();
         }, 120000); // 2 minutes
