@@ -245,6 +245,114 @@
             gap: 16px;
         }
 
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .service-item {
+            background: rgba(30, 136, 229, 0.1);
+            border: 1px solid rgba(66, 165, 245, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .service-item:hover {
+            background: rgba(30, 136, 229, 0.15);
+            border-color: rgba(66, 165, 245, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(30, 136, 229, 0.2);
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .service-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #64b5f6;
+            margin-bottom: 4px;
+        }
+
+        .service-location {
+            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(66, 165, 245, 0.2);
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .service-description {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 12px;
+        }
+
+        .service-details {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .service-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .service-detail-label {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .service-detail-value {
+            color: #64b5f6;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .service-url {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(66, 165, 245, 0.2);
+        }
+
+        .service-url-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(66, 165, 245, 0.2);
+            border: 1px solid rgba(66, 165, 245, 0.3);
+            border-radius: 8px;
+            color: #64b5f6;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .service-url-btn:hover {
+            background: rgba(66, 165, 245, 0.3);
+            border-color: rgba(66, 165, 245, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .loading-text {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 40px;
+            font-size: 1.1em;
+        }
+
         .ip-item {
             background: rgba(30, 136, 229, 0.1);
             border: 1px solid rgba(66, 165, 245, 0.2);
@@ -360,6 +468,10 @@
             .ip-grid {
                 grid-template-columns: 1fr;
             }
+
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         ::-webkit-scrollbar {
@@ -399,6 +511,14 @@
                 <button id="startPCBtn" class="btn btn-success" onclick="startPC()">🚀 Start PC</button>
                 <button id="shutdownPCBtn" class="btn btn-danger" onclick="shutdownPC()">🔴 Shutdown PC</button>
                 <button class="btn btn-warning" onclick="restartServer()">🔄 Restart Bot</button>
+                <button class="btn btn-primary" onclick="openTailscale()">🕸️ Tailscale Machines</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔌 Services & Ports</h2>
+            <div id="servicesContainer" class="services-grid">
+                <div class="loading-text">Loading services...</div>
             </div>
         </div>
 
@@ -699,6 +819,10 @@
             }
         }
 
+        function openTailscale() {
+            window.open('/tailscale', '_blank');
+        }
+
         // Socket events
         socket.on('pcStatusUpdate', (data) => {
             console.log('PC status update received:', data);
@@ -716,10 +840,69 @@
             }
         });
 
+        // Load and display services
+        async function loadServices() {
+            try {
+                const response = await fetch('/api/services');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Failed to load services');
+                
+                displayServices(data.services);
+            } catch (error) {
+                console.error('Error loading services:', error);
+                document.getElementById('servicesContainer').innerHTML = 
+                    '<div class="loading-text">❌ Error loading services: ' + error.message + '</div>';
+            }
+        }
+
+        function displayServices(services) {
+            const container = document.getElementById('servicesContainer');
+            
+            if (!services || services.length === 0) {
+                container.innerHTML = '<div class="loading-text">No services configured</div>';
+                return;
+            }
+
+            container.innerHTML = services.map(service => `
+                <div class="service-item">
+                    <div class="service-header">
+                        <div>
+                            <div class="service-name">${service.name}</div>
+                        </div>
+                        <span class="service-location">${service.location}</span>
+                    </div>
+                    ${service.description ? `<div class="service-description">${service.description}</div>` : ''}
+                    <div class="service-details">
+                        <div class="service-detail-row">
+                            <span class="service-detail-label">Host:</span>
+                            <span class="service-detail-value">${service.host}</span>
+                        </div>
+                        <div class="service-detail-row">
+                            <span class="service-detail-label">Port:</span>
+                            <span class="service-detail-value">${service.port}</span>
+                        </div>
+                        <div class="service-detail-row">
+                            <span class="service-detail-label">Protocol:</span>
+                            <span class="service-detail-value">${service.protocol.toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="service-url">
+                        <a href="${service.url}" target="_blank" class="service-url-btn">
+                            🔗 Open ${service.name}
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function () {
             updatePCButtonStates();
+            loadServices();
             setInterval(updatePCButtonStates, 30000); // Update every 30 seconds
+            setInterval(loadServices, 60000); // Refresh services every minute
         });
     </script>
 </body>

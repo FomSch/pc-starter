@@ -30,7 +30,12 @@ class WebServer {
             res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
         });
 
-        // PC status endpoint (same logic as Discord bot)
+        // Convenience redirect to Tailscale admin page
+        this.app.get('/tailscale', (req, res) => {
+            res.redirect('https://login.tailscale.com/admin/machines');
+        });
+
+        // PC status endpoint
         this.app.get('/api/pc/status', (req, res) => {
             const { exec } = require('child_process');
             const config = require('./config.json');
@@ -248,6 +253,50 @@ class WebServer {
                 }, 1000);
             } catch (error) {
                 res.status(500).json({ error: error.message });
+            }
+        });
+
+        // Services/ports information endpoint
+        this.app.get('/api/services', (req, res) => {
+            try {
+                const config = require('./config.json');
+                const services = config.services || [];
+                
+                // Get the Pi's IP address for services running on the Pi
+                const { networkInterfaces } = require('os');
+                const nets = networkInterfaces();
+                let piIP = 'localhost';
+                
+                for (const name of Object.keys(nets)) {
+                    for (const net of nets[name]) {
+                        if (net.family === 'IPv4' && !net.internal) {
+                            piIP = net.address;
+                            break;
+                        }
+                    }
+                }
+
+                // Replace 'localhost' with actual Pi IP for services on the Pi
+                const servicesWithURLs = services.map(service => {
+                    const host = service.host === 'localhost' ? piIP : service.host;
+                    const url = `${service.protocol}://${host}:${service.port}`;
+                    return {
+                        ...service,
+                        host: host,
+                        url: url
+                    };
+                });
+
+                res.json({
+                    success: true,
+                    services: servicesWithURLs,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                res.status(500).json({ 
+                    success: false, 
+                    error: error.message 
+                });
             }
         });
     }
