@@ -52,5 +52,12 @@
             "label": "Development Server",
             "ip": "10.0.0.50"
         }
+    ],
+    "websites": [
+        {
+            "name": "Example Site",
+            "url": "https://example.com",
+            "description": "Example website"
+        }
     ]
 }

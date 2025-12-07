@@ -389,7 +389,7 @@
 
         .copy-btn {
             position: absolute;
-            top: 16px;
+            bottom: 16px;
             right: 16px;
             background: rgba(66, 165, 245, 0.2);
             border: 1px solid rgba(66, 165, 245, 0.3);
@@ -418,6 +418,7 @@
             right: 12px;
             display: flex;
             gap: 6px;
+            z-index: 10;
         }
 
         .ip-action-btn {
@@ -520,6 +521,126 @@
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
+        }
+
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 0;
+        }
+
+        .collapsible-header:hover {
+            opacity: 0.8;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s ease;
+            font-size: 1.2em;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding: 0;
+        }
+
+        .website-item {
+            background: rgba(30, 136, 229, 0.1);
+            border: 1px solid rgba(66, 165, 245, 0.2);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .website-item:hover {
+            background: rgba(30, 136, 229, 0.15);
+            border-color: rgba(66, 165, 245, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(30, 136, 229, 0.2);
+        }
+
+        .website-item-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .website-link {
+            display: block;
+            text-decoration: none;
+            color: #64b5f6;
+            font-weight: 600;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .website-link:hover {
+            text-decoration: underline;
+        }
+
+        .website-description {
+            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+        }
+
+        .website-item.editing {
+            border-color: rgba(66, 165, 245, 0.5);
+            background: rgba(30, 136, 229, 0.15);
+        }
+
+        .website-item input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(66, 165, 245, 0.3);
+            border-radius: 8px;
+            padding: 8px;
+            color: #ffffff;
+            font-size: 0.9em;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .website-item input:focus {
+            outline: none;
+            border-color: rgba(66, 165, 245, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .add-website-btn {
+            background: rgba(67, 160, 71, 0.2);
+            border: 2px dashed rgba(67, 160, 71, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 12px;
+        }
+
+        .add-website-btn:hover {
+            background: rgba(67, 160, 71, 0.3);
+            border-color: rgba(67, 160, 71, 0.6);
+            color: #81c784;
         }
 
         .status-indicator {
@@ -641,6 +762,24 @@
             </div>
             <div id="ipAddressesContainer" class="ip-grid">
                 <div class="loading-text">Loading IP addresses...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="collapsible-header" onclick="toggleWebsites()">
+                <h2>🌐 Websites & Links</h2>
+                <span class="collapse-icon" id="websitesCollapseIcon">▼</span>
+            </div>
+            <div class="collapsible-content" id="websitesContent">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div></div>
+                    <button id="saveWebsitesBtn" class="save-ip-btn" onclick="saveWebsites()" style="display: none;">
+                        💾 Save Changes
+                    </button>
+                </div>
+                <div id="websitesContainer">
+                    <div class="loading-text">Loading websites...</div>
+                </div>
             </div>
         </div>
 
@@ -1141,11 +1280,193 @@
             `).join('');
         }
 
+        // Websites management
+        let websites = [];
+        let websitesModified = false;
+        let websitesExpanded = true;
+
+        function toggleWebsites() {
+            websitesExpanded = !websitesExpanded;
+            const content = document.getElementById('websitesContent');
+            const icon = document.getElementById('websitesCollapseIcon');
+            
+            if (websitesExpanded) {
+                content.classList.remove('collapsed');
+                icon.classList.remove('collapsed');
+            } else {
+                content.classList.add('collapsed');
+                icon.classList.add('collapsed');
+            }
+        }
+
+        // Load websites from API
+        async function loadWebsites() {
+            try {
+                const response = await fetch('/api/websites');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Failed to load websites');
+                
+                websites = data.websites || [];
+                displayWebsites();
+            } catch (error) {
+                console.error('Error loading websites:', error);
+                document.getElementById('websitesContainer').innerHTML = 
+                    '<div class="loading-text">❌ Error loading websites: ' + error.message + '</div>';
+            }
+        }
+
+        // Display websites
+        function displayWebsites() {
+            const container = document.getElementById('websitesContainer');
+            
+            if (!websites || websites.length === 0) {
+                container.innerHTML = '<div class="loading-text">No websites configured</div>';
+                return;
+            }
+
+            container.innerHTML = websites.map((website, index) => `
+                <div class="website-item" data-index="${index}">
+                    <div class="website-item-actions">
+                        <button class="ip-action-btn" onclick="editWebsite(${index})" title="Edit">✏️</button>
+                        <button class="ip-action-btn delete" onclick="deleteWebsite(${index})" title="Delete">🗑️</button>
+                    </div>
+                    <a href="${escapeHtml(website.url)}" target="_blank" class="website-link">
+                        ${escapeHtml(website.name)}
+                    </a>
+                    ${website.description ? `<div class="website-description">${escapeHtml(website.description)}</div>` : ''}
+                </div>
+            `).join('') + `
+                <div class="add-website-btn" onclick="addNewWebsite()">
+                    ➕ Add New Website
+                </div>
+            `;
+        }
+
+        // Edit website
+        function editWebsite(index) {
+            const item = document.querySelector(`.website-item[data-index="${index}"]`);
+            if (!item) return;
+
+            const website = websites[index];
+            if (!website) return;
+
+            item.classList.add('editing');
+            item.innerHTML = `
+                <div class="website-item-actions">
+                    <button class="ip-action-btn" onclick="saveWebsiteEdit(${index})" title="Save">💾</button>
+                    <button class="ip-action-btn delete" onclick="cancelWebsiteEdit(${index})" title="Cancel">❌</button>
+                </div>
+                <input type="text" class="website-name-input" value="${escapeHtml(website.name)}" placeholder="Website Name">
+                <input type="text" class="website-url-input" value="${escapeHtml(website.url)}" placeholder="URL (https://...)">
+                <input type="text" class="website-desc-input" value="${escapeHtml(website.description || '')}" placeholder="Description (optional)">
+            `;
+        }
+
+        // Save website edit
+        function saveWebsiteEdit(index) {
+            const item = document.querySelector(`.website-item[data-index="${index}"]`);
+            if (!item) return;
+
+            const nameInput = item.querySelector('.website-name-input');
+            const urlInput = item.querySelector('.website-url-input');
+            const descInput = item.querySelector('.website-desc-input');
+
+            const newName = nameInput.value.trim();
+            const newURL = urlInput.value.trim();
+            const newDesc = descInput.value.trim();
+
+            if (!newName || !newURL) {
+                alert('Both name and URL are required');
+                return;
+            }
+
+            // Basic URL validation
+            try {
+                new URL(newURL);
+            } catch (e) {
+                alert('Please enter a valid URL (e.g., https://example.com)');
+                return;
+            }
+
+            websites[index] = { 
+                name: newName, 
+                url: newURL,
+                description: newDesc || undefined
+            };
+            websitesModified = true;
+            document.getElementById('saveWebsitesBtn').style.display = 'block';
+            displayWebsites();
+        }
+
+        // Cancel website edit
+        function cancelWebsiteEdit(index) {
+            displayWebsites();
+        }
+
+        // Delete website
+        function deleteWebsite(index) {
+            if (!confirm(`Are you sure you want to delete "${websites[index].name}"?`)) {
+                return;
+            }
+
+            websites.splice(index, 1);
+            websitesModified = true;
+            document.getElementById('saveWebsitesBtn').style.display = 'block';
+            displayWebsites();
+        }
+
+        // Add new website
+        function addNewWebsite() {
+            websites.push({ name: 'New Website', url: 'https://example.com', description: '' });
+            websitesModified = true;
+            document.getElementById('saveWebsitesBtn').style.display = 'block';
+            displayWebsites();
+            editWebsite(websites.length - 1);
+        }
+
+        // Save websites to server
+        async function saveWebsites() {
+            const saveBtn = document.getElementById('saveWebsitesBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Saving...';
+
+            try {
+                const response = await fetch('/api/websites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ websites: websites })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save websites');
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    websitesModified = false;
+                    saveBtn.style.display = 'none';
+                    alert('✅ Websites saved successfully!');
+                } else {
+                    throw new Error(result.error || 'Failed to save');
+                }
+            } catch (error) {
+                console.error('Error saving websites:', error);
+                alert('❌ Error saving websites: ' + error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Save Changes';
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function () {
             updatePCButtonStates();
             loadServices();
             loadIPAddresses();
+            loadWebsites();
             setInterval(updatePCButtonStates, 30000); // Update every 30 seconds
             setInterval(loadServices, 60000); // Refresh services every minute
         });

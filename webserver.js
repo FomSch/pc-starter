@@ -366,6 +366,73 @@ class WebServer {
                 });
             }
         });
+
+        // Websites endpoints
+        this.app.get('/api/websites', (req, res) => {
+            try {
+                const config = require('./config.json');
+                const websites = config.websites || [];
+                
+                res.json({
+                    success: true,
+                    websites: websites,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                res.status(500).json({ 
+                    success: false, 
+                    error: error.message 
+                });
+            }
+        });
+
+        this.app.post('/api/websites', (req, res) => {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const configPath = path.join(__dirname, 'config.json');
+                
+                // Validate request body
+                if (!req.body || !Array.isArray(req.body.websites)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid request: websites must be an array'
+                    });
+                }
+
+                // Validate each website entry
+                for (const entry of req.body.websites) {
+                    if (!entry.name || !entry.url) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'Each website entry must have both name and url fields'
+                        });
+                    }
+                }
+
+                // Load current config
+                const config = require('./config.json');
+                
+                // Update websites
+                config.websites = req.body.websites;
+                
+                // Save config
+                const jsonContent = JSON.stringify(config, null, 4);
+                fs.writeFileSync(configPath, jsonContent, 'utf8');
+                
+                res.json({
+                    success: true,
+                    message: 'Websites updated successfully',
+                    websites: config.websites,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                res.status(500).json({ 
+                    success: false, 
+                    error: error.message 
+                });
+            }
+        });
     }
 
     setupSocketIO() {
