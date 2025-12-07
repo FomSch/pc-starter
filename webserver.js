@@ -299,6 +299,73 @@ class WebServer {
                 });
             }
         });
+
+        // IP addresses endpoints
+        this.app.get('/api/ip-addresses', (req, res) => {
+            try {
+                const config = require('./config.json');
+                const ipAddresses = config.ipAddresses || [];
+                
+                res.json({
+                    success: true,
+                    ipAddresses: ipAddresses,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                res.status(500).json({ 
+                    success: false, 
+                    error: error.message 
+                });
+            }
+        });
+
+        this.app.post('/api/ip-addresses', (req, res) => {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const configPath = path.join(__dirname, 'config.json');
+                
+                // Validate request body
+                if (!req.body || !Array.isArray(req.body.ipAddresses)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid request: ipAddresses must be an array'
+                    });
+                }
+
+                // Validate each IP entry
+                for (const entry of req.body.ipAddresses) {
+                    if (!entry.label || !entry.ip) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'Each IP entry must have both label and ip fields'
+                        });
+                    }
+                }
+
+                // Load current config
+                const config = require('./config.json');
+                
+                // Update IP addresses
+                config.ipAddresses = req.body.ipAddresses;
+                
+                // Save config
+                const jsonContent = JSON.stringify(config, null, 4);
+                fs.writeFileSync(configPath, jsonContent, 'utf8');
+                
+                res.json({
+                    success: true,
+                    message: 'IP addresses updated successfully',
+                    ipAddresses: config.ipAddresses,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                res.status(500).json({ 
+                    success: false, 
+                    error: error.message 
+                });
+            }
+        });
     }
 
     setupSocketIO() {

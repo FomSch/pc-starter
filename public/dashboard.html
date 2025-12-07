@@ -412,6 +412,116 @@
             color: #81c784;
         }
 
+        .ip-item-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .ip-action-btn {
+            background: rgba(66, 165, 245, 0.2);
+            border: 1px solid rgba(66, 165, 245, 0.3);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.75em;
+            color: #64b5f6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .ip-action-btn:hover {
+            background: rgba(66, 165, 245, 0.3);
+            border-color: rgba(66, 165, 245, 0.5);
+        }
+
+        .ip-action-btn.delete {
+            background: rgba(229, 57, 53, 0.2);
+            border-color: rgba(229, 57, 53, 0.3);
+            color: #ef5350;
+        }
+
+        .ip-action-btn.delete:hover {
+            background: rgba(229, 57, 53, 0.3);
+            border-color: rgba(229, 57, 53, 0.5);
+        }
+
+        .ip-item.editing {
+            border-color: rgba(66, 165, 245, 0.5);
+            background: rgba(30, 136, 229, 0.15);
+        }
+
+        .ip-item input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(66, 165, 245, 0.3);
+            border-radius: 8px;
+            padding: 8px;
+            color: #ffffff;
+            font-size: 0.9em;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .ip-item input:focus {
+            outline: none;
+            border-color: rgba(66, 165, 245, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .ip-item input.ip-input {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .add-ip-btn {
+            background: rgba(67, 160, 71, 0.2);
+            border: 2px dashed rgba(67, 160, 71, 0.4);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .add-ip-btn:hover {
+            background: rgba(67, 160, 71, 0.3);
+            border-color: rgba(67, 160, 71, 0.6);
+            color: #81c784;
+        }
+
+        .ip-header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .save-ip-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .save-ip-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(67, 160, 71, 0.3);
+        }
+
+        .save-ip-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .status-indicator {
             display: inline-block;
             width: 12px;
@@ -523,43 +633,14 @@
         </div>
 
         <div class="card">
-            <h2>📋 Quick IP Access</h2>
-            <div class="ip-grid">
-                <div class="ip-item" onclick="copyIP(this)">
-                    <button class="copy-btn">Copy</button>
-                    <div class="ip-label">Main Server</div>
-                    <div class="ip-address">192.168.1.100</div>
-                </div>
-
-                <div class="ip-item" onclick="copyIP(this)">
-                    <button class="copy-btn">Copy</button>
-                    <div class="ip-label">Database Server</div>
-                    <div class="ip-address">192.168.1.150</div>
-                </div>
-
-                <div class="ip-item" onclick="copyIP(this)">
-                    <button class="copy-btn">Copy</button>
-                    <div class="ip-label">Backup Server</div>
-                    <div class="ip-address">192.168.1.200</div>
-                </div>
-
-                <div class="ip-item" onclick="copyIP(this)">
-                    <button class="copy-btn">Copy</button>
-                    <div class="ip-label">Router Gateway</div>
-                    <div class="ip-address">192.168.1.1</div>
-                </div>
-
-                <div class="ip-item" onclick="copyIP(this)">
-                    <button class="copy-btn">Copy</button>
-                    <div class="ip-label">NAS Storage</div>
-                    <div class="ip-address">192.168.1.250</div>
-                </div>
-
-                <div class="ip-item" onclick="copyIP(this)">
-                    <button class="copy-btn">Copy</button>
-                    <div class="ip-label">Development Server</div>
-                    <div class="ip-address">10.0.0.50</div>
-                </div>
+            <div class="ip-header-actions">
+                <h2>📋 Quick IP Access</h2>
+                <button id="saveIPsBtn" class="save-ip-btn" onclick="saveIPAddresses()" style="display: none;">
+                    💾 Save Changes
+                </button>
+            </div>
+            <div id="ipAddressesContainer" class="ip-grid">
+                <div class="loading-text">Loading IP addresses...</div>
             </div>
         </div>
 
@@ -570,6 +651,60 @@
 
     <script>
         const socket = io();
+
+        let ipAddresses = [];
+        let ipAddressesModified = false;
+
+        // Load IP addresses from API
+        async function loadIPAddresses() {
+            try {
+                const response = await fetch('/api/ip-addresses');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Failed to load IP addresses');
+                
+                ipAddresses = data.ipAddresses || [];
+                displayIPAddresses();
+            } catch (error) {
+                console.error('Error loading IP addresses:', error);
+                document.getElementById('ipAddressesContainer').innerHTML = 
+                    '<div class="loading-text">❌ Error loading IP addresses: ' + error.message + '</div>';
+            }
+        }
+
+        // Display IP addresses
+        function displayIPAddresses() {
+            const container = document.getElementById('ipAddressesContainer');
+            
+            if (!ipAddresses || ipAddresses.length === 0) {
+                container.innerHTML = '<div class="loading-text">No IP addresses configured</div>';
+                return;
+            }
+
+            container.innerHTML = ipAddresses.map((ipEntry, index) => `
+                <div class="ip-item" data-index="${index}">
+                    <div class="ip-item-actions">
+                        <button class="ip-action-btn" onclick="editIP(${index})" title="Edit">✏️</button>
+                        <button class="ip-action-btn delete" onclick="deleteIP(${index})" title="Delete">🗑️</button>
+                    </div>
+                    <button class="copy-btn" onclick="copyIP(this.closest('.ip-item'))">Copy</button>
+                    <div class="ip-label">${escapeHtml(ipEntry.label)}</div>
+                    <div class="ip-address">${escapeHtml(ipEntry.ip)}</div>
+                </div>
+            `).join('') + `
+                <div class="add-ip-btn" onclick="addNewIP()">
+                    ➕ Add New IP Address
+                </div>
+            `;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         // Copy IP to clipboard
         function copyIP(element) {
@@ -582,13 +717,122 @@
                 copyBtn.classList.add('copied');
                 
                 setTimeout(() => {
-                    copyBtn.textContent = originalText;
+                    copyBtn.textContent = 'Copy';
                     copyBtn.classList.remove('copied');
                 }, 2000);
             }).catch(err => {
                 console.error('Failed to copy:', err);
                 alert('Failed to copy IP address');
             });
+        }
+
+        // Edit IP address
+        function editIP(index) {
+            const item = document.querySelector(`.ip-item[data-index="${index}"]`);
+            if (!item) return;
+
+            const ipEntry = ipAddresses[index];
+            if (!ipEntry) return;
+
+            item.classList.add('editing');
+            item.innerHTML = `
+                <div class="ip-item-actions">
+                    <button class="ip-action-btn" onclick="saveIPEdit(${index})" title="Save">💾</button>
+                    <button class="ip-action-btn delete" onclick="cancelIPEdit(${index})" title="Cancel">❌</button>
+                </div>
+                <input type="text" class="ip-label-input" value="${escapeHtml(ipEntry.label)}" placeholder="Label">
+                <input type="text" class="ip-input" value="${escapeHtml(ipEntry.ip)}" placeholder="IP Address">
+            `;
+        }
+
+        // Save IP edit
+        function saveIPEdit(index) {
+            const item = document.querySelector(`.ip-item[data-index="${index}"]`);
+            if (!item) return;
+
+            const labelInput = item.querySelector('.ip-label-input');
+            const ipInput = item.querySelector('.ip-input');
+
+            const newLabel = labelInput.value.trim();
+            const newIP = ipInput.value.trim();
+
+            if (!newLabel || !newIP) {
+                alert('Both label and IP address are required');
+                return;
+            }
+
+            // Basic IP validation
+            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipRegex.test(newIP)) {
+                alert('Please enter a valid IP address');
+                return;
+            }
+
+            ipAddresses[index] = { label: newLabel, ip: newIP };
+            ipAddressesModified = true;
+            document.getElementById('saveIPsBtn').style.display = 'block';
+            displayIPAddresses();
+        }
+
+        // Cancel IP edit
+        function cancelIPEdit(index) {
+            displayIPAddresses();
+        }
+
+        // Delete IP address
+        function deleteIP(index) {
+            if (!confirm(`Are you sure you want to delete "${ipAddresses[index].label}"?`)) {
+                return;
+            }
+
+            ipAddresses.splice(index, 1);
+            ipAddressesModified = true;
+            document.getElementById('saveIPsBtn').style.display = 'block';
+            displayIPAddresses();
+        }
+
+        // Add new IP address
+        function addNewIP() {
+            ipAddresses.push({ label: 'New Server', ip: '0.0.0.0' });
+            ipAddressesModified = true;
+            document.getElementById('saveIPsBtn').style.display = 'block';
+            displayIPAddresses();
+            editIP(ipAddresses.length - 1);
+        }
+
+        // Save IP addresses to server
+        async function saveIPAddresses() {
+            const saveBtn = document.getElementById('saveIPsBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Saving...';
+
+            try {
+                const response = await fetch('/api/ip-addresses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ipAddresses: ipAddresses })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save IP addresses');
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    ipAddressesModified = false;
+                    saveBtn.style.display = 'none';
+                    alert('✅ IP addresses saved successfully!');
+                } else {
+                    throw new Error(result.error || 'Failed to save');
+                }
+            } catch (error) {
+                console.error('Error saving IP addresses:', error);
+                alert('❌ Error saving IP addresses: ' + error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Save Changes';
+            }
         }
 
         // PC status function
@@ -901,6 +1145,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             updatePCButtonStates();
             loadServices();
+            loadIPAddresses();
             setInterval(updatePCButtonStates, 30000); // Update every 30 seconds
             setInterval(loadServices, 60000); // Refresh services every minute
         });

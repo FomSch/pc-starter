@@ -11,12 +11,46 @@
             "location": "PC"
         },
         {
+            "name": "qBittorrent",
+            "host": "192.168.0.13",
+            "port": 8080,
+            "protocol": "http",
+            "description": "BitTorrent client web UI",
+            "location": "PC"
+        },
+        {
             "name": "PC Control Dashboard",
             "host": "localhost",
             "port": 3001,
             "protocol": "http",
             "description": "PC power control dashboard",
             "location": "Raspberry Pi"
+        }
+    ],
+    "ipAddresses": [
+        {
+            "label": "Main Server",
+            "ip": "192.168.1.100"
+        },
+        {
+            "label": "Database Server",
+            "ip": "192.168.1.150"
+        },
+        {
+            "label": "Backup Server",
+            "ip": "192.168.1.200"
+        },
+        {
+            "label": "Router Gateway",
+            "ip": "192.168.1.1"
+        },
+        {
+            "label": "NAS Storage",
+            "ip": "192.168.1.250"
+        },
+        {
+            "label": "Development Server",
+            "ip": "10.0.0.50"
         }
     ]
 }
